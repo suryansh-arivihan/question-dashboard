@@ -1,36 +1,126 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Admin Dashboard - Question Management System
 
-## Getting Started
+A Next.js 14+ TypeScript application for managing NEET question topics with hierarchical navigation and generation queue functionality.
 
-First, run the development server:
+## Features
+
+- **Hierarchical Navigation**: Browse through Subjects → Chapters → Topics
+- **Question Status Tracking**: View VERIFIED, PENDING, and IN_PROGRESS questions
+- **Ready to Go Workflow**: Queue topics for generation with one click
+- **Authentication**: Clerk-based auth with invite code validation
+- **Admin Controls**: Restricted access for authorized users
+- **Real-time Updates**: Toast notifications for actions
+- **Responsive Design**: Mobile-first UI with Tailwind CSS
+
+## Tech Stack
+
+- **Framework**: Next.js 14+ (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS v4
+- **UI Components**: shadcn/ui
+- **Authentication**: Clerk
+- **Database**: AWS DynamoDB (SDK v3)
+- **Icons**: lucide-react
+- **Notifications**: sonner
+
+## Setup Instructions
+
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure Environment Variables
+
+Copy the example environment file:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Update `.env.local` with your credentials:
+
+```env
+# Clerk Authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_publishable_key_here
+CLERK_SECRET_KEY=your_secret_key_here
+
+# AWS DynamoDB
+AWS_ACCESS_KEY_ID=your_aws_access_key_id
+AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
+AWS_REGION=us-east-1
+
+# Invite Codes (comma-separated)
+VALID_INVITE_CODES=ADMIN2025,TECHIE2025,NEET2025
+
+# Admin user emails (comma-separated)
+ADMIN_EMAILS=admin@example.com,superadmin@example.com
+```
+
+### 3. Set Up Clerk
+
+1. Go to [Clerk Dashboard](https://dashboard.clerk.com/)
+2. Create a new application
+3. Copy your API keys to `.env.local`
+4. Configure redirect URLs:
+   - Sign-in URL: `/sign-in`
+   - Sign-up URL: `/sign-up`
+   - After sign-in: `/dashboard`
+   - After sign-up: `/dashboard`
+
+### 4. Set Up DynamoDB Tables
+
+Ensure the following tables exist:
+
+- `ExamChapterTopicMappings` - Topic mappings
+- `NEETAdaptiveQuestionGeneratorData` - PENDING/IN_PROGRESS questions
+- `NEETAdaptiveQuestionGeneratorDataVerified` - VERIFIED questions
+- `generation_queue` - Queue entries (create this)
+
+### 5. Run Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/                    # Next.js app directory
+│   ├── api/               # API routes
+│   ├── dashboard/         # Dashboard pages
+│   ├── sign-in/          # Authentication pages
+│   └── sign-up/
+├── components/            # React components
+│   └── ui/               # shadcn/ui components
+├── lib/                  # Utilities and DB clients
+├── types/                # TypeScript types
+└── middleware.ts         # Clerk middleware
+```
 
-## Learn More
+## Key Features
 
-To learn more about Next.js, take a look at the following resources:
+### Hierarchical Navigation
+Navigate from subjects → chapters → topics with breadcrumb navigation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Status Tracking
+Real-time question counts with visual status badges
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Ready to Go Queue
+Admin-only feature to queue topics for generation
 
-## Deploy on Vercel
+## Development
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run dev      # Start development server
+npm run build    # Build for production
+npm start        # Start production server
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+
+MIT
