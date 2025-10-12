@@ -31,7 +31,7 @@ export function Navbar() {
                 height={32}
                 className="rounded-md"
               />
-              <span className="text-lg font-semibold">Question Dashboard</span>
+              <span className="text-lg font-semibold">Arivihan Question Dashboard</span>
             </Link>
           </div>
           <div className="flex items-center gap-3">

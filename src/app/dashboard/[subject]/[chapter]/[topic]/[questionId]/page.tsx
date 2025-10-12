@@ -234,20 +234,24 @@ export default function QuestionReviewPage() {
               <CardTitle className="text-lg">Options</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-3">
                 {question.options.map((option) => (
                   <div
                     key={option.label}
                     className={`rounded-lg border-2 p-4 transition-colors ${
                       option.label === question.answer
-                        ? "border-green-500 bg-green-50 dark:bg-green-950"
+                        ? "border-[#26c6da] bg-[#26c6da]/10"
                         : "border-border"
                     }`}
                   >
                     <div className="flex items-start gap-3">
                       <Badge
                         variant={option.label === question.answer ? "default" : "outline"}
-                        className="mt-0.5"
+                        className={`mt-0.5 ${
+                          option.label === question.answer
+                            ? "bg-[#26c6da] hover:bg-[#26c6da]/90 border-[#26c6da]"
+                            : ""
+                        }`}
                       >
                         {option.label}
                       </Badge>

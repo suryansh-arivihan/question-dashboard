@@ -15,6 +15,18 @@ export function LatexRenderer({ content, className = "" }: LatexRendererProps) {
     const katex = require("katex");
     let processed = content;
 
+    // Process display math: $$...$$ (must be done before inline math)
+    processed = processed.replace(/\$\$([^$]+)\$\$/g, (match, math) => {
+      try {
+        return katex.renderToString(math, {
+          throwOnError: false,
+          displayMode: true,
+        });
+      } catch (e) {
+        return match;
+      }
+    });
+
     // Process inline math: $...$
     processed = processed.replace(/\$([^$]+)\$/g, (match, math) => {
       try {
@@ -27,8 +39,8 @@ export function LatexRenderer({ content, className = "" }: LatexRendererProps) {
       }
     });
 
-    // Process display math: $$...$$
-    processed = processed.replace(/\$\$([^$]+)\$\$/g, (match, math) => {
+    // Process LaTeX expressions with commands (wrapped in \[ \] format)
+    processed = processed.replace(/\\\[(.+?)\\\]/gs, (match, math) => {
       try {
         return katex.renderToString(math, {
           throwOnError: false,
@@ -39,10 +51,10 @@ export function LatexRenderer({ content, className = "" }: LatexRendererProps) {
       }
     });
 
-    // Process LaTeX commands like \dfrac, \left, \right, etc.
-    processed = processed.replace(/\\([a-zA-Z]+)/g, (match) => {
+    // Process inline LaTeX expressions (wrapped in \( \) format)
+    processed = processed.replace(/\\\((.+?)\\\)/gs, (match, math) => {
       try {
-        return katex.renderToString(match, {
+        return katex.renderToString(math, {
           throwOnError: false,
           displayMode: false,
         });
