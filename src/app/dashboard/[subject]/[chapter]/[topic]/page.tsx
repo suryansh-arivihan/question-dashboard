@@ -20,6 +20,11 @@ interface Question {
   subject: string;
   chapter_name: string;
   identified_topic: string;
+  verifiedBy?: {
+    email: string;
+    id: string;
+    name: string;
+  };
 }
 
 interface QuestionCounts {
@@ -316,8 +321,9 @@ export default function QuestionsPage() {
             {/* Questions Table */}
             <div className="overflow-hidden rounded-md border">
               <div className="grid grid-cols-12 bg-muted px-3 py-2 text-xs font-medium text-muted-foreground">
-                <div className="col-span-11">Question</div>
-                <div className="col-span-1 text-right">Level</div>
+                <div className="col-span-7">Question</div>
+                <div className="col-span-3 text-right">Verified By</div>
+                <div className="col-span-2 text-right">Level</div>
               </div>
 
               <ul role="list" className="divide-y">
@@ -332,13 +338,22 @@ export default function QuestionsPage() {
                     }
                   >
                     <div className="grid grid-cols-12 items-center gap-2" style={{ minHeight: '3rem' }}>
-                      <div className="col-span-11">
+                      <div className="col-span-7">
                         <div className="line-clamp-2 text-sm leading-6">
                           <LatexRenderer content={question.question} />
                         </div>
                       </div>
-                      <div className="col-span-1 flex justify-end">
-                        <Badge variant="outline">L{question.difficulty_level}</Badge>
+                      <div className="col-span-3 flex items-center justify-end">
+                        {question.status === "VERIFIED" && question.verifiedBy ? (
+                          <span className="truncate text-sm text-muted-foreground">
+                            {question.verifiedBy.name}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground/50">—</span>
+                        )}
+                      </div>
+                      <div className="col-span-2 flex justify-end">
+                        <Badge>L{question.difficulty_level}</Badge>
                       </div>
                     </div>
                   </li>

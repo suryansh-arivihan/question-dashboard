@@ -7,9 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LatexRenderer } from "@/components/LatexRenderer";
 import { capitalize } from "@/lib/utils";
-import { Loader2, CheckCircle, ArrowLeft } from "lucide-react";
+import { Loader2, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
+import Link from "next/link";
 
 interface Option {
   label: string;
@@ -37,6 +38,21 @@ interface Question {
   exam: string;
 }
 
+interface NavigationData {
+  previous: {
+    questionId: string;
+    question: string;
+    difficulty_level: number;
+  } | null;
+  next: {
+    questionId: string;
+    question: string;
+    difficulty_level: number;
+  } | null;
+  currentIndex: number;
+  totalQuestions: number;
+}
+
 export default function QuestionReviewPage() {
   const router = useRouter();
   const params = useParams();
@@ -49,9 +65,11 @@ export default function QuestionReviewPage() {
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [navigation, setNavigation] = useState<NavigationData | null>(null);
 
   useEffect(() => {
     fetchQuestion();
+    fetchNavigation();
   }, [subject, chapter, topic, questionId]);
 
   const fetchQuestion = async () => {
@@ -86,6 +104,21 @@ export default function QuestionReviewPage() {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchNavigation = async () => {
+    try {
+      const response = await fetch(
+        `/api/questions/navigation?subject=${subject}&chapter=${chapter}&topic=${topic}&questionId=${questionId}&status=all`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setNavigation(data);
+      }
+    } catch (err) {
+      console.error("Error fetching navigation:", err);
     }
   };
 
@@ -153,7 +186,7 @@ export default function QuestionReviewPage() {
               {error || "Question not found"}
             </p>
             <div className="mt-4">
-              <Button variant="secondary" onClick={goBack}>
+              <Button variant="outline" onClick={goBack}>
                 Go Back
               </Button>
             </div>
@@ -166,16 +199,41 @@ export default function QuestionReviewPage() {
   return (
     <main className="min-h-dvh bg-background text-foreground">
       <div className="mx-auto w-full max-w-5xl px-4 py-8 md:py-10">
+        {/* Prefetch links for adjacent questions */}
+        {navigation?.previous && (
+          <Link
+            href={`/dashboard/${subject}/${encodeURIComponent(chapter)}/${encodeURIComponent(topic)}/${navigation.previous.questionId}`}
+            prefetch={true}
+            style={{ display: 'none' }}
+            aria-hidden="true"
+          />
+        )}
+        {navigation?.next && (
+          <Link
+            href={`/dashboard/${subject}/${encodeURIComponent(chapter)}/${encodeURIComponent(topic)}/${navigation.next.questionId}`}
+            prefetch={true}
+            style={{ display: 'none' }}
+            aria-hidden="true"
+          />
+        )}
+
         <header className="mb-6">
-          <Button
-            variant="secondary"
-            size="sm"
-            className="mb-2 rounded-md px-3 py-1 transition-all hover:translate-x-[-2px]"
-            onClick={goBack}
-            aria-label="Go back"
-          >
-            ← Back
-          </Button>
+          <div className="mb-2 flex items-center justify-between">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-md px-3 py-1"
+              onClick={goBack}
+              aria-label="Go back"
+            >
+              ← Back
+            </Button>
+            {navigation && (
+              <div className="text-sm text-muted-foreground">
+                Question {navigation.currentIndex} of {navigation.totalQuestions}
+              </div>
+            )}
+          </div>
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-balance text-2xl font-semibold tracking-tight">
@@ -186,8 +244,8 @@ export default function QuestionReviewPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <Badge variant="outline">Level {question.difficulty_level}</Badge>
-              <Badge variant={question.status === "VERIFIED" ? "default" : "secondary"}>
+              <Badge>Level {question.difficulty_level}</Badge>
+              <Badge variant={question.status === "VERIFIED" ? "verified" : "pending"}>
                 {question.status}
               </Badge>
             </div>
@@ -246,7 +304,7 @@ export default function QuestionReviewPage() {
                   >
                     <div className="flex items-start gap-3">
                       <Badge
-                        variant={option.label === question.answer ? "default" : "outline"}
+                        variant={option.label === question.answer ? "verified" : "default"}
                         className={`mt-0.5 ${
                           option.label === question.answer
                             ? "bg-[#26c6da] hover:bg-[#26c6da]/90 border-[#26c6da]"
@@ -316,16 +374,42 @@ export default function QuestionReviewPage() {
             </Card>
           )}
 
-          {/* Verify Button */}
-          {question.status === "PENDING" && (
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={goBack}>
-                Cancel
-              </Button>
+          {/* Navigation and Action Buttons */}
+          <div className="flex items-center justify-between gap-4">
+            {/* Previous Button */}
+            <div className="flex-1">
+              {navigation?.previous ? (
+                <Link
+                  href={`/dashboard/${subject}/${encodeURIComponent(chapter)}/${encodeURIComponent(topic)}/${navigation.previous.questionId}`}
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    <span className="truncate">Previous Question</span>
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled
+                  className="w-full justify-start"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span>Previous Question</span>
+                </Button>
+              )}
+            </div>
+
+            {/* Verify Button (if pending) */}
+            {question.status === "PENDING" && (
               <Button
                 onClick={handleVerify}
                 disabled={verifying}
-                className="min-w-[120px]"
+                className="min-w-[140px]"
               >
                 {verifying ? (
                   <>
@@ -339,8 +423,36 @@ export default function QuestionReviewPage() {
                   </>
                 )}
               </Button>
+            )}
+
+            {/* Next Button */}
+            <div className="flex-1">
+              {navigation?.next ? (
+                <Link
+                  href={`/dashboard/${subject}/${encodeURIComponent(chapter)}/${encodeURIComponent(topic)}/${navigation.next.questionId}`}
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-end"
+                  >
+                    <span className="truncate">Next Question</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled
+                  className="w-full justify-end"
+                >
+                  <span>Next Question</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </main>
