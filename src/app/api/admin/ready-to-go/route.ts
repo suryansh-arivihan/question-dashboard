@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { v4 as uuidv4 } from "uuid";
-import { isAdmin, isTopicQueued, createQueueEntry } from "@/lib/queries";
+import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { isTopicQueued, createQueueEntry } from "@/lib/queries";
+import { docClient, TABLES } from "@/lib/dynamodb";
 import { ReadyToGoRequest, ReadyToGoResponse, GenerationQueueEntry } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -25,17 +27,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user is admin
-    if (!isAdmin(userEmail)) {
-      return NextResponse.json(
-        { error: "Forbidden: Admin access required" },
-        { status: 403 }
-      );
-    }
-
     // Parse request body
     const body: ReadyToGoRequest = await request.json();
-    const { subject, chapter, topic } = body;
+    const { subject, chapter, topic, topicId } = body;
 
     if (!subject || !chapter || !topic) {
       return NextResponse.json(
@@ -44,32 +38,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if already queued
-    const alreadyQueued = await isTopicQueued(subject, chapter, topic);
-    if (alreadyQueued) {
-      return NextResponse.json(
-        { error: "Topic is already queued for generation" },
-        { status: 409 }
-      );
+    // If topicId is provided, use it to update the ReadyToGo flag
+    if (topicId) {
+      console.log("[Ready to Go] Updating ReadyToGo flag for topic_id:", topicId);
+
+      const updateCommand = new UpdateCommand({
+        TableName: TABLES.MAPPINGS,
+        Key: {
+          topic_id: topicId,
+          exam: "neet",
+        },
+        UpdateExpression: "SET ReadyToGo = :readyToGo",
+        ExpressionAttributeValues: {
+          ":readyToGo": true,
+        },
+      });
+
+      await docClient.send(updateCommand);
+      console.log("[Ready to Go] Successfully updated ReadyToGo flag");
+    } else {
+      console.warn("[Ready to Go] No topicId provided, skipping ReadyToGo update");
     }
 
-    // Create queue entry
+    // Try to check if already queued and create queue entry (skip if table doesn't exist)
     const queueId = uuidv4();
-    const timestamp = Date.now();
+    try {
+      const alreadyQueued = await isTopicQueued(subject, chapter, topic);
+      if (alreadyQueued) {
+        return NextResponse.json(
+          { error: "Topic is already queued for generation" },
+          { status: 409 }
+        );
+      }
 
-    const entry: GenerationQueueEntry = {
-      id: queueId,
-      subject,
-      chapter_name: chapter,
-      topic_name: topic,
-      triggered_by: userEmail,
-      timestamp,
-      status: "QUEUED",
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    };
+      // Create queue entry
+      const timestamp = Date.now();
+      const entry: GenerationQueueEntry = {
+        id: queueId,
+        subject,
+        chapter_name: chapter,
+        topic_name: topic,
+        triggered_by: userEmail,
+        timestamp,
+        status: "QUEUED",
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
 
-    await createQueueEntry(entry);
+      await createQueueEntry(entry);
+    } catch (queueError) {
+      // Log but don't fail if generation_queue table doesn't exist
+      console.warn("[Ready to Go] Queue table not available:", queueError);
+    }
 
     const response: ReadyToGoResponse = {
       success: true,

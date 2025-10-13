@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 interface TopicWithStats {
   name: string;
   display_name: string;
+  topic_id: string;
   verified: number;
   pending: number;
   in_progress: number;
@@ -133,6 +134,7 @@ export async function GET(request: NextRequest) {
       return {
         name: mapping.topic,
         display_name: mapping.topic_display_name,
+        topic_id: mapping.topic_id,
         verified: counts.verified,
         pending: counts.pending,
         in_progress: counts.in_progress,

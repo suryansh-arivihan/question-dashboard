@@ -4,14 +4,16 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { VerificationBars } from "@/components/VerificationBars";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SUBJECT_CHAPTER_MAPPINGS } from "@/data/subject-chapter-mappings";
 import { capitalize } from "@/lib/utils";
-import { Loader2, Rocket, CheckCircle2 } from "lucide-react";
+import { Loader2, Rocket, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 interface TopicWithStats {
   name: string;
   display_name: string;
+  topic_id: string;
   verified: number;
   pending: number;
   in_progress: number;
@@ -32,6 +34,8 @@ export default function ChapterPage() {
   const [error, setError] = useState<string | null>(null);
   const [queuedTopics, setQueuedTopics] = useState<Set<string>>(new Set());
   const [queuingTopics, setQueuingTopics] = useState<Set<string>>(new Set());
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [selectedTopic, setSelectedTopic] = useState<TopicWithStats | null>(null);
 
   const subjectData = SUBJECT_CHAPTER_MAPPINGS.find((s) => s.subject === subject);
   const chapterData = subjectData?.chapters.find((c) => c.name === chapter);
@@ -62,7 +66,16 @@ export default function ChapterPage() {
     }
   };
 
-  const handleReadyToGo = async (topicName: string) => {
+  const showConfirmDialog = (topic: TopicWithStats) => {
+    setSelectedTopic(topic);
+    setConfirmDialogOpen(true);
+  };
+
+  const handleReadyToGo = async () => {
+    if (!selectedTopic) return;
+
+    const topicName = selectedTopic.name;
+    setConfirmDialogOpen(false);
     setQueuingTopics((prev) => new Set(prev).add(topicName));
 
     try {
@@ -75,6 +88,7 @@ export default function ChapterPage() {
           subject,
           chapter,
           topic: topicName,
+          topicId: selectedTopic.topic_id,
         }),
       });
 
@@ -96,6 +110,7 @@ export default function ChapterPage() {
         next.delete(topicName);
         return next;
       });
+      setSelectedTopic(null);
     }
   };
 
@@ -221,7 +236,7 @@ export default function ChapterPage() {
                           </Button>
                           <Button
                             size="sm"
-                            onClick={() => handleReadyToGo(topic.name)}
+                            onClick={() => showConfirmDialog(topic)}
                             disabled={isQueuing || isQueued}
                           >
                             {isQueued ? (
@@ -246,6 +261,43 @@ export default function ChapterPage() {
           )}
         </section>
       </div>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100">
+                <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              </div>
+              <DialogTitle>Trigger Generation Pipeline?</DialogTitle>
+            </div>
+            <DialogDescription className="text-left mt-2">
+              Are you sure you want to trigger the generation pipeline for{" "}
+              <strong>{selectedTopic?.display_name}</strong>?
+              <br />
+              <br />
+              This will queue the topic for question generation. The process may take some time to complete.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDialogOpen(false)}
+              disabled={selectedTopic ? queuingTopics.has(selectedTopic.name) : false}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="success"
+              onClick={handleReadyToGo}
+              disabled={selectedTopic ? queuingTopics.has(selectedTopic.name) : false}
+            >
+              {selectedTopic && queuingTopics.has(selectedTopic.name) ? "Queueing..." : "Yes, Trigger Pipeline"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

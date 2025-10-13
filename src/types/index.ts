@@ -81,6 +81,7 @@ export interface ReadyToGoRequest {
   subject: string;
   chapter: string;
   topic: string;
+  topicId?: string;
 }
 
 export interface ReadyToGoResponse {
