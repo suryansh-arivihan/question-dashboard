@@ -20,7 +20,7 @@ export async function getTopicMappings(
   subject?: string,
   chapter?: string
 ): Promise<ExamChapterTopicMapping[]> {
-  const command = new ScanCommand({
+  const command: ScanCommand = new ScanCommand({
     TableName: TABLES.MAPPINGS,
     FilterExpression: subject
       ? chapter
@@ -223,7 +223,7 @@ export async function isTopicQueued(
   chapter: string,
   topic: string
 ): Promise<boolean> {
-  const command = new ScanCommand({
+  const command: ScanCommand = new ScanCommand({
     TableName: TABLES.GENERATION_QUEUE,
     FilterExpression:
       "subject = :subject AND chapter_name = :chapter AND topic_name = :topic AND #status = :status",

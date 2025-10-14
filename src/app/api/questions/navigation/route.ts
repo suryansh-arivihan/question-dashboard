@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
         ? TABLES.QUESTIONS_VERIFIED
         : TABLES.QUESTIONS_PENDING;
 
-      const command = new ScanCommand({
+      const command: ScanCommand = new ScanCommand({
         TableName: tableName,
         FilterExpression: filterExpression,
         ExpressionAttributeValues: expressionAttributeValues,
