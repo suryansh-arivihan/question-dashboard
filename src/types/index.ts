@@ -34,11 +34,29 @@ export interface GenerationQueueEntry {
   subject: string;
   chapter_name: string;
   topic_name: string;
+  topic_id: string;
   triggered_by: string;
   timestamp: number;
-  status: "QUEUED";
+  status: "QUEUED" | "IN_PROGRESS" | "COMPLETED" | "FAILED";
   createdAt: number;
   updatedAt: number;
+  summary?: {
+    level_1?: LevelSummary;
+    level_2?: LevelSummary;
+    level_3?: LevelSummary;
+    level_4?: LevelSummary;
+    level_5?: LevelSummary;
+  };
+}
+
+export interface LevelSummary {
+  level: number;
+  status: string;
+  existing_count: number;
+  needed_count: number;
+  generated_count: number;
+  reason?: string | null;
+  error?: string | null;
 }
 
 // API response interfaces
@@ -81,7 +99,7 @@ export interface ReadyToGoRequest {
   subject: string;
   chapter: string;
   topic: string;
-  topicId?: string;
+  topicId: string;
 }
 
 export interface ReadyToGoResponse {

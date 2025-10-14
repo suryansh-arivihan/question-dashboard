@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Rocket, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Rocket, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "./ui/card";
 import { StatusBadge } from "./StatusBadge";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "./ui/dialog";
 import { toast } from "sonner";
+import { PipelineHistoryModal } from "./PipelineHistoryModal";
 
 interface TopicCardProps {
   topic: string;
@@ -42,6 +43,7 @@ export function TopicCard({
   const [isLoading, setIsLoading] = useState(false);
   const [isQueued, setIsQueued] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   const handleReadyToGo = async () => {
     setShowConfirmDialog(false);
@@ -91,12 +93,12 @@ export function TopicCard({
             <StatusBadge label="Level 3" count={verifiedLevel3} variant="verified" />
           </div>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex gap-2">
           <Button
             variant="success"
             onClick={() => setShowConfirmDialog(true)}
             disabled={isLoading || isQueued}
-            className="w-full"
+            className="flex-1"
           >
             {isQueued ? (
               <>
@@ -109,6 +111,14 @@ export function TopicCard({
                 {isLoading ? "Queueing..." : "Ready to Go"}
               </>
             )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowHistoryModal(true)}
+            className="px-3"
+            title="View Pipeline History"
+          >
+            <Clock className="h-4 w-4" />
           </Button>
         </CardFooter>
       </Card>
@@ -149,6 +159,14 @@ export function TopicCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Pipeline History Modal */}
+      <PipelineHistoryModal
+        open={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        topicId={topicId}
+        topicDisplayName={displayName}
+      />
     </>
   );
 }

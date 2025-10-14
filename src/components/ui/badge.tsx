@@ -2,7 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: "default" | "verified" | "pending" | "in_progress" | "total" | "secondary";
+  variant?: "default" | "verified" | "pending" | "in_progress" | "total" | "secondary" | "destructive" | "outline";
 }
 
 function Badge({ className, variant = "default", ...props }: BadgeProps) {
@@ -15,6 +15,8 @@ function Badge({ className, variant = "default", ...props }: BadgeProps) {
           "border-transparent bg-green-100 text-green-800": variant === "verified",
           "border-transparent bg-yellow-100 text-yellow-800": variant === "pending",
           "border-transparent bg-blue-100 text-blue-800": variant === "in_progress",
+          "border-transparent bg-red-100 text-red-800": variant === "destructive",
+          "border-gray-300 bg-transparent text-gray-800": variant === "outline",
         },
         className
       )}

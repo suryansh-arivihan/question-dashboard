@@ -7,8 +7,9 @@ import { VerificationBars } from "@/components/VerificationBars";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SUBJECT_CHAPTER_MAPPINGS } from "@/data/subject-chapter-mappings";
 import { capitalize } from "@/lib/utils";
-import { Loader2, Rocket, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Loader2, Rocket, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { PipelineHistoryModal } from "@/components/PipelineHistoryModal";
 
 interface TopicWithStats {
   name: string;
@@ -36,6 +37,9 @@ export default function ChapterPage() {
   const [queuingTopics, setQueuingTopics] = useState<Set<string>>(new Set());
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<TopicWithStats | null>(null);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [historyTopicId, setHistoryTopicId] = useState<string>("");
+  const [historyTopicName, setHistoryTopicName] = useState<string>("");
 
   const subjectData = SUBJECT_CHAPTER_MAPPINGS.find((s) => s.subject === subject);
   const chapterData = subjectData?.chapters.find((c) => c.name === chapter);
@@ -69,6 +73,12 @@ export default function ChapterPage() {
   const showConfirmDialog = (topic: TopicWithStats) => {
     setSelectedTopic(topic);
     setConfirmDialogOpen(true);
+  };
+
+  const showHistoryModal = (topic: TopicWithStats) => {
+    setHistoryTopicId(topic.topic_id);
+    setHistoryTopicName(topic.display_name);
+    setHistoryModalOpen(true);
   };
 
   const handleReadyToGo = async () => {
@@ -236,6 +246,14 @@ export default function ChapterPage() {
                           </Button>
                           <Button
                             size="sm"
+                            variant="outline"
+                            onClick={() => showHistoryModal(topic)}
+                            title="View Pipeline History"
+                          >
+                            <Clock className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
                             onClick={() => showConfirmDialog(topic)}
                             disabled={isQueuing || isQueued}
                           >
@@ -298,6 +316,14 @@ export default function ChapterPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Pipeline History Modal */}
+      <PipelineHistoryModal
+        open={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
+        topicId={historyTopicId}
+        topicDisplayName={historyTopicName}
+      />
     </main>
   );
 }

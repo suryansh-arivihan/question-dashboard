@@ -38,30 +38,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If topicId is provided, use it to update the ReadyToGo flag
-    if (topicId) {
-      console.log("[Ready to Go] Updating ReadyToGo flag for topic_id:", topicId);
-
-      const updateCommand = new UpdateCommand({
-        TableName: TABLES.MAPPINGS,
-        Key: {
-          topic_id: topicId,
-          exam: "neet",
-        },
-        UpdateExpression: "SET ReadyToGo = :readyToGo",
-        ExpressionAttributeValues: {
-          ":readyToGo": true,
-        },
-      });
-
-      await docClient.send(updateCommand);
-      console.log("[Ready to Go] Successfully updated ReadyToGo flag");
-    } else {
-      console.warn("[Ready to Go] No topicId provided, skipping ReadyToGo update");
+    if (!topicId) {
+      return NextResponse.json(
+        { error: "Missing topicId - required for tracking pipeline history" },
+        { status: 400 }
+      );
     }
 
-    // Try to check if already queued and create queue entry (skip if table doesn't exist)
+    // Generate unique queue ID
     const queueId = uuidv4();
+
+    // Check if already queued and create queue entry
     try {
       const alreadyQueued = await isTopicQueued(subject, chapter, topic);
       if (alreadyQueued) {
@@ -78,6 +65,7 @@ export async function POST(request: NextRequest) {
         subject,
         chapter_name: chapter,
         topic_name: topic,
+        topic_id: topicId,
         triggered_by: userEmail,
         timestamp,
         status: "QUEUED",
@@ -86,15 +74,59 @@ export async function POST(request: NextRequest) {
       };
 
       await createQueueEntry(entry);
+      console.log("[Ready to Go] Created queue entry with id:", queueId);
     } catch (queueError) {
-      // Log but don't fail if generation_queue table doesn't exist
-      console.warn("[Ready to Go] Queue table not available:", queueError);
+      console.error("[Ready to Go] Failed to create queue entry:", queueError);
+      return NextResponse.json(
+        { error: "Failed to create queue entry" },
+        { status: 500 }
+      );
+    }
+
+    // Call the generate-questions-pipeline endpoint
+    const pipelineUrl = process.env.PIPELINE_ENDPOINT_URL || "http://localhost:8000";
+    const pipelineEndpoint = `${pipelineUrl}/generate-questions-pipeline`;
+
+    try {
+      console.log("[Ready to Go] Calling pipeline endpoint:", pipelineEndpoint);
+
+      const pipelineResponse = await fetch(pipelineEndpoint, {
+        method: "POST",
+        headers: {
+          "accept": "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: queueId,
+          identified_topic: topic,
+          chapter_name: chapter,
+          subject: subject.toLowerCase(),
+        }),
+      });
+
+      if (!pipelineResponse.ok) {
+        const errorData = await pipelineResponse.json().catch(() => ({}));
+        console.error("[Ready to Go] Pipeline request failed:", errorData);
+        throw new Error(errorData.detail || "Pipeline request failed");
+      }
+
+      const pipelineData = await pipelineResponse.json();
+      console.log("[Ready to Go] Pipeline triggered successfully:", pipelineData);
+    } catch (pipelineError) {
+      console.error("[Ready to Go] Error calling pipeline:", pipelineError);
+      return NextResponse.json(
+        {
+          error: "Failed to trigger pipeline",
+          details: pipelineError instanceof Error ? pipelineError.message : "Unknown error"
+        },
+        { status: 500 }
+      );
     }
 
     const response: ReadyToGoResponse = {
       success: true,
       queueId,
-      message: "Topic queued for generation",
+      message: "Topic queued for generation and pipeline triggered",
     };
 
     return NextResponse.json(response, { status: 201 });
