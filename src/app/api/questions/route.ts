@@ -30,10 +30,15 @@ export async function GET(request: NextRequest) {
 
     // Build filter expression
     let filterExpression = "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic";
+    let filterExpressionPending = "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic AND (attribute_not_exists(#status) OR #status <> :verifiedStatus)";
     const expressionAttributeValues: Record<string, any> = {
       ":subject": subject.toLowerCase(),
       ":chapter": chapter.toLowerCase(),
       ":topic": topic.toLowerCase(),
+      ":verifiedStatus": "VERIFIED",
+    };
+    const expressionAttributeNames = {
+      "#status": "status",
     };
 
     console.log("[Questions API] Searching for:", {
@@ -47,21 +52,30 @@ export async function GET(request: NextRequest) {
     // Add level filter if specified
     if (level) {
       filterExpression += " AND difficulty_level = :level";
+      filterExpressionPending += " AND difficulty_level = :level";
       expressionAttributeValues[":level"] = parseInt(level);
     }
 
     // Helper function to scan all pages from a table
-    const scanAllPages = async (tableName: string) => {
+    const scanAllPages = async (tableName: string, useStatusFilter: boolean = false) => {
       let allItems: any[] = [];
       let lastEvaluatedKey: Record<string, any> | undefined = undefined;
 
+      const scanParams: any = {
+        TableName: tableName,
+        FilterExpression: useStatusFilter ? filterExpressionPending : filterExpression,
+        ExpressionAttributeValues: expressionAttributeValues,
+        ExclusiveStartKey: undefined,
+      };
+
+      // Add ExpressionAttributeNames only for pending table (when status filter is needed)
+      if (useStatusFilter) {
+        scanParams.ExpressionAttributeNames = expressionAttributeNames;
+      }
+
       do {
-        const command: ScanCommand = new ScanCommand({
-          TableName: tableName,
-          FilterExpression: filterExpression,
-          ExpressionAttributeValues: expressionAttributeValues,
-          ExclusiveStartKey: lastEvaluatedKey,
-        });
+        scanParams.ExclusiveStartKey = lastEvaluatedKey;
+        const command: ScanCommand = new ScanCommand(scanParams);
 
         const response = await docClient.send(command);
         allItems = allItems.concat(response.Items || []);
@@ -75,9 +89,10 @@ export async function GET(request: NextRequest) {
 
     if (status === "all") {
       // Fetch from both tables in parallel with full pagination
+      // For pending table, filter out questions with status=VERIFIED
       const [pendingItems, verifiedItems] = await Promise.all([
-        scanAllPages(TABLES.QUESTIONS_PENDING),
-        scanAllPages(TABLES.QUESTIONS_VERIFIED),
+        scanAllPages(TABLES.QUESTIONS_PENDING, true), // useStatusFilter=true
+        scanAllPages(TABLES.QUESTIONS_VERIFIED, false),
       ]);
 
       console.log("[Questions API] Results:", {
@@ -97,7 +112,9 @@ export async function GET(request: NextRequest) {
         ? TABLES.QUESTIONS_VERIFIED
         : TABLES.QUESTIONS_PENDING;
 
-      allQuestions = await scanAllPages(tableName);
+      // For pending table, filter out questions with status=VERIFIED
+      const useStatusFilter = status === "PENDING";
+      allQuestions = await scanAllPages(tableName, useStatusFilter);
     }
 
     // Pagination

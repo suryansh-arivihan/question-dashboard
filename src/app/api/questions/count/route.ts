@@ -25,25 +25,36 @@ export async function GET(request: NextRequest) {
     }
 
     const filterExpression = "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic";
+    const filterExpressionPending = "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic AND (attribute_not_exists(#status) OR #status <> :verifiedStatus)";
     const expressionAttributeValues = {
       ":subject": subject.toLowerCase(),
       ":chapter": chapter.toLowerCase(),
       ":topic": topic.toLowerCase(),
+      ":verifiedStatus": "VERIFIED",
+    };
+    const expressionAttributeNames = {
+      "#status": "status",
     };
 
     // Helper function to scan all pages and count items
-    const scanAndCount = async (tableName: string, filterExpr: string, attrValues: Record<string, any>) => {
+    const scanAndCount = async (tableName: string, filterExpr: string, attrValues: Record<string, any>, attrNames?: Record<string, string>) => {
       let count = 0;
       let lastEvaluatedKey: Record<string, any> | undefined = undefined;
 
       do {
-        const command: ScanCommand = new ScanCommand({
+        const scanParams: any = {
           TableName: tableName,
           FilterExpression: filterExpr,
           ExpressionAttributeValues: attrValues,
           Select: "COUNT",
           ExclusiveStartKey: lastEvaluatedKey,
-        });
+        };
+
+        if (attrNames) {
+          scanParams.ExpressionAttributeNames = attrNames;
+        }
+
+        const command: ScanCommand = new ScanCommand(scanParams);
 
         const response = await docClient.send(command);
         count += response.Count || 0;
@@ -54,22 +65,25 @@ export async function GET(request: NextRequest) {
     };
 
     // Get counts by level for a table
-    const getLevelCounts = async (tableName: string) => {
+    const getLevelCounts = async (tableName: string, isPendingTable: boolean) => {
       const counts = { level1: 0, level2: 0, level3: 0 };
 
+      const baseFilter = isPendingTable ? filterExpressionPending : filterExpression;
+      const attrNames = isPendingTable ? expressionAttributeNames : undefined;
+
       const [level1, level2, level3] = await Promise.all([
-        scanAndCount(tableName, filterExpression + " AND difficulty_level = :level", {
+        scanAndCount(tableName, baseFilter + " AND difficulty_level = :level", {
           ...expressionAttributeValues,
           ":level": 1,
-        }),
-        scanAndCount(tableName, filterExpression + " AND difficulty_level = :level", {
+        }, attrNames),
+        scanAndCount(tableName, baseFilter + " AND difficulty_level = :level", {
           ...expressionAttributeValues,
           ":level": 2,
-        }),
-        scanAndCount(tableName, filterExpression + " AND difficulty_level = :level", {
+        }, attrNames),
+        scanAndCount(tableName, baseFilter + " AND difficulty_level = :level", {
           ...expressionAttributeValues,
           ":level": 3,
-        }),
+        }, attrNames),
       ]);
 
       counts.level1 = level1;
@@ -80,14 +94,15 @@ export async function GET(request: NextRequest) {
     };
 
     // Fetch total counts from both tables in parallel
+    // For pending table, exclude questions with status=VERIFIED
     const [pendingTotal, verifiedTotal] = await Promise.all([
-      scanAndCount(TABLES.QUESTIONS_PENDING, filterExpression, expressionAttributeValues),
+      scanAndCount(TABLES.QUESTIONS_PENDING, filterExpressionPending, expressionAttributeValues, expressionAttributeNames),
       scanAndCount(TABLES.QUESTIONS_VERIFIED, filterExpression, expressionAttributeValues),
     ]);
 
     const [pendingLevelCounts, verifiedLevelCounts] = await Promise.all([
-      getLevelCounts(TABLES.QUESTIONS_PENDING),
-      getLevelCounts(TABLES.QUESTIONS_VERIFIED),
+      getLevelCounts(TABLES.QUESTIONS_PENDING, true),
+      getLevelCounts(TABLES.QUESTIONS_VERIFIED, false),
     ]);
 
     const counts = {
