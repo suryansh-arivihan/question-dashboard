@@ -22,6 +22,8 @@ interface TopicWithStats {
   verifiedLevel1?: number;
   verifiedLevel2?: number;
   verifiedLevel3?: number;
+  verifiedLevel4?: number;
+  verifiedLevel5?: number;
 }
 
 export default function ChapterPage() {
@@ -210,9 +212,10 @@ export default function ChapterPage() {
             </div>
           ) : (
             <div className="overflow-hidden rounded-md border">
-              <div className="grid grid-cols-12 bg-muted px-3 py-2 text-xs font-medium text-muted-foreground">
-                <div className="col-span-4">Topic</div>
-                <div className="col-span-4">Verification Status</div>
+              <div className="grid grid-cols-12 bg-muted px-3 py-2 text-xs font-medium text-muted-foreground gap-3">
+                <div className="col-span-3">Topic</div>
+                <div className="col-span-4 pl-2">Verification Status</div>
+                <div className="col-span-1 text-center">Unverified</div>
                 <div className="col-span-4 text-right">Actions</div>
               </div>
 
@@ -223,18 +226,29 @@ export default function ChapterPage() {
 
                   return (
                     <li key={topic.name} className="px-3 py-3">
-                      <div className="grid grid-cols-12 items-center gap-2">
-                        <div className="col-span-4">
+                      <div className="grid grid-cols-12 items-center gap-3">
+                        <div className="col-span-3">
                           <div className="font-medium text-sm">
                             {topic.display_name}
                           </div>
                         </div>
-                        <div className="col-span-4 pl-4">
+                        <div className="col-span-4 pl-2">
                           <VerificationBars
                             verifiedLevel1={topic.verifiedLevel1 || 0}
                             verifiedLevel2={topic.verifiedLevel2 || 0}
                             verifiedLevel3={topic.verifiedLevel3 || 0}
+                            verifiedLevel4={topic.verifiedLevel4 || 0}
+                            verifiedLevel5={topic.verifiedLevel5 || 0}
                           />
+                        </div>
+                        <div className="col-span-1 flex justify-center">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            topic.pending > 0
+                              ? "bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200"
+                              : "bg-muted text-muted-foreground"
+                          }`}>
+                            {topic.pending}
+                          </span>
                         </div>
                         <div className="col-span-4 flex justify-end gap-2">
                           <Button

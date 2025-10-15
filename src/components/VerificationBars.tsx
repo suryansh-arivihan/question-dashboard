@@ -2,14 +2,27 @@ interface VerificationBarsProps {
   verifiedLevel1: number;
   verifiedLevel2: number;
   verifiedLevel3: number;
+  verifiedLevel4: number;
+  verifiedLevel5: number;
 }
 
 export function VerificationBars({
   verifiedLevel1,
   verifiedLevel2,
   verifiedLevel3,
+  verifiedLevel4,
+  verifiedLevel5,
 }: VerificationBarsProps) {
-  const total = verifiedLevel1 + verifiedLevel2 + verifiedLevel3;
+  const total = verifiedLevel1 + verifiedLevel2 + verifiedLevel3 + verifiedLevel4 + verifiedLevel5;
+
+  // Define colors for each level (easy to hard: green → yellow → orange → red → dark red)
+  const levelColors = [
+    "#10b981", // green-500 - Easiest (L1)
+    "#84cc16", // lime-500
+    "#eab308", // yellow-500 - Medium
+    "#f97316", // orange-500
+    "#dc2626", // red-600 - Hardest (L5)
+  ];
 
   if (total === 0) {
     return (
@@ -19,22 +32,19 @@ export function VerificationBars({
           <span>0 questions</span>
         </div>
         <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted" />
-        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-          <span className="inline-block h-2 w-2 rounded-full bg-accent" /> L1
-          <span className="inline-block h-2 w-2 rounded-full bg-primary" /> L2
-          <span
-            className="inline-block h-2 w-2 rounded-full"
-            style={{ backgroundColor: "color-mix(in oklab, var(--accent), var(--primary))" }}
-          />{" "}
-          L3
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
+          {levelColors.map((color, i) => (
+            <span key={i} className="inline-flex items-center gap-1">
+              <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: color }} /> L{i + 1}
+            </span>
+          ))}
         </div>
       </div>
     );
   }
 
-  const l1Pct = Math.round((verifiedLevel1 / total) * 100);
-  const l2Pct = Math.round((verifiedLevel2 / total) * 100);
-  const l3Pct = Math.round((verifiedLevel3 / total) * 100);
+  const levels = [verifiedLevel1, verifiedLevel2, verifiedLevel3, verifiedLevel4, verifiedLevel5];
+  const percentages = levels.map(level => Math.round((level / total) * 100));
 
   return (
     <div className="space-y-1">
@@ -43,40 +53,28 @@ export function VerificationBars({
         <span>{total} questions</span>
       </div>
       <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted">
-        <div
-          className="absolute left-0 top-0 h-full bg-accent"
-          style={{ width: `${l1Pct}%` }}
-          aria-label={`Level 1: ${l1Pct}%`}
-        />
-        <div
-          className="absolute top-0 h-full bg-primary"
-          style={{ left: `${l1Pct}%`, width: `${l2Pct}%` }}
-          aria-label={`Level 2: ${l2Pct}%`}
-        />
-        <div
-          className="absolute top-0 h-full"
-          style={{
-            left: `${l1Pct + l2Pct}%`,
-            width: `${l3Pct}%`,
-            backgroundColor: "color-mix(in oklab, var(--accent), var(--primary))",
-          }}
-          aria-label={`Level 3: ${l3Pct}%`}
-        />
+        {levels.map((level, index) => {
+          const leftOffset = percentages.slice(0, index).reduce((sum, pct) => sum + pct, 0);
+          return level > 0 ? (
+            <div
+              key={index}
+              className="absolute top-0 h-full"
+              style={{
+                left: `${leftOffset}%`,
+                width: `${percentages[index]}%`,
+                backgroundColor: levelColors[index],
+              }}
+              aria-label={`Level ${index + 1}: ${percentages[index]}%`}
+            />
+          ) : null;
+        })}
       </div>
-      <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1">
-          <span className="inline-block h-2 w-2 rounded-full bg-accent" /> L1: {verifiedLevel1}
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <span className="inline-block h-2 w-2 rounded-full bg-primary" /> L2: {verifiedLevel2}
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <span
-            className="inline-block h-2 w-2 rounded-full"
-            style={{ backgroundColor: "color-mix(in oklab, var(--accent), var(--primary))" }}
-          />{" "}
-          L3: {verifiedLevel3}
-        </span>
+      <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
+        {levels.map((level, index) => (
+          <span key={index} className="inline-flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: levelColors[index] }} /> L{index + 1}: {level}
+          </span>
+        ))}
       </div>
     </div>
   );

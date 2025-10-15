@@ -16,6 +16,8 @@ interface TopicWithStats {
   verifiedLevel1?: number;
   verifiedLevel2?: number;
   verifiedLevel3?: number;
+  verifiedLevel4?: number;
+  verifiedLevel5?: number;
 }
 
 export async function GET(request: NextRequest) {
@@ -44,7 +46,8 @@ export async function GET(request: NextRequest) {
 
     console.log("[Topics API] Fetching topics for:", { subject, chapter });
 
-    // First, get all topics for this chapter from mappings
+    // Get all topics for this chapter from mappings
+    // The mappings table contains up-to-date counts maintained by Lambda
     const mappingsCommand = new ScanCommand({
       TableName: TABLES.MAPPINGS,
       FilterExpression: "exam = :exam AND subject = :subject AND chapter = :chapter",
@@ -63,85 +66,36 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ topics: [] });
     }
 
-    // Now get question counts for all topics in parallel
-    // Fetch all questions for this subject/chapter in one query
-    const pendingCommand = new ScanCommand({
-      TableName: TABLES.QUESTIONS_PENDING,
-      FilterExpression: "subject = :subject AND chapter_name = :chapter",
-      ExpressionAttributeValues: {
-        ":subject": subject.toLowerCase(),
-        ":chapter": chapter.toLowerCase(),
-      },
-    });
-
-    const verifiedCommand = new ScanCommand({
-      TableName: TABLES.QUESTIONS_VERIFIED,
-      FilterExpression: "subject = :subject AND chapter_name = :chapter",
-      ExpressionAttributeValues: {
-        ":subject": subject.toLowerCase(),
-        ":chapter": chapter.toLowerCase(),
-      },
-    });
-
-    // Run both queries in parallel
-    const [pendingResponse, verifiedResponse] = await Promise.all([
-      docClient.send(pendingCommand),
-      docClient.send(verifiedCommand),
-    ]);
-
-    const pendingQuestions = pendingResponse.Items || [];
-    const verifiedQuestions = verifiedResponse.Items || [];
-
-    console.log("[Topics API] Found questions - Pending:", pendingQuestions.length, "Verified:", verifiedQuestions.length);
-
-    // Group questions by topic
-    const questionsByTopic = new Map<string, { pending: number; in_progress: number; verified: number }>();
-
-    // Process pending/in-progress questions
-    for (const question of pendingQuestions) {
-      const topic = question.identified_topic?.toLowerCase().trim();
-      if (!topic) continue;
-
-      if (!questionsByTopic.has(topic)) {
-        questionsByTopic.set(topic, { pending: 0, in_progress: 0, verified: 0 });
-      }
-
-      const counts = questionsByTopic.get(topic)!;
-      if (question.status === "PENDING") {
-        counts.pending++;
-      } else if (question.status === "IN_PROGRESS") {
-        counts.in_progress++;
-      }
-    }
-
-    // Process verified questions
-    for (const question of verifiedQuestions) {
-      const topic = question.identified_topic?.toLowerCase().trim();
-      if (!topic) continue;
-
-      if (!questionsByTopic.has(topic)) {
-        questionsByTopic.set(topic, { pending: 0, in_progress: 0, verified: 0 });
-      }
-
-      questionsByTopic.get(topic)!.verified++;
-    }
-
-    // Build the response
+    // Build the response using the counts from the mapping table
+    // These are kept up-to-date by a Lambda function
     const topics: TopicWithStats[] = mappings.map((mapping: any) => {
-      const topicName = mapping.topic.toLowerCase().trim();
-      const counts = questionsByTopic.get(topicName) || { pending: 0, in_progress: 0, verified: 0 };
+      // Sum up all unverified levels to get total pending count
+      const unverifiedTotal = (mapping.UnverifiedLevel1 || 0) +
+                             (mapping.UnverifiedLevel2 || 0) +
+                             (mapping.UnverifiedLevel3 || 0) +
+                             (mapping.UnverifiedLevel4 || 0) +
+                             (mapping.UnverifiedLevel5 || 0);
+
+      // Sum up all verified levels to get total verified count
+      const verifiedTotal = (mapping.VerifiedLevel1 || 0) +
+                           (mapping.VerifiedLevel2 || 0) +
+                           (mapping.VerifiedLevel3 || 0) +
+                           (mapping.VerifiedLevel4 || 0) +
+                           (mapping.VerifiedLevel5 || 0);
 
       return {
         name: mapping.topic,
         display_name: mapping.topic_display_name,
         topic_id: mapping.topic_id,
-        verified: counts.verified,
-        pending: counts.pending,
-        in_progress: counts.in_progress,
-        total: counts.verified + counts.pending + counts.in_progress,
+        verified: verifiedTotal,
+        pending: unverifiedTotal,
+        in_progress: 0, // Not tracked separately in mappings
+        total: verifiedTotal + unverifiedTotal,
         verifiedLevel1: mapping.VerifiedLevel1 || 0,
         verifiedLevel2: mapping.VerifiedLevel2 || 0,
         verifiedLevel3: mapping.VerifiedLevel3 || 0,
+        verifiedLevel4: mapping.VerifiedLevel4 || 0,
+        verifiedLevel5: mapping.VerifiedLevel5 || 0,
       };
     });
 

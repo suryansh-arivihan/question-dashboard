@@ -25,13 +25,17 @@ export async function GET(request: NextRequest) {
     }
 
     const filterExpression = "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic";
-    const filterExpressionPending = "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic AND (attribute_not_exists(#status) OR #status <> :verifiedStatus)";
-    const expressionAttributeValues = {
+    // For pending table, exclude VERIFIED and DISCARDED questions
+    const filterExpressionPending = "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic AND (attribute_not_exists(#status) OR (#status <> :verifiedStatus AND #status <> :discardedStatus))";
+    // For discarded questions only
+    const filterExpressionDiscarded = "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic AND #status = :discardedStatus";
+
+    const baseAttributeValues: Record<string, any> = {
       ":subject": subject.toLowerCase(),
       ":chapter": chapter.toLowerCase(),
       ":topic": topic.toLowerCase(),
-      ":verifiedStatus": "VERIFIED",
     };
+
     const expressionAttributeNames = {
       "#status": "status",
     };
@@ -65,44 +69,58 @@ export async function GET(request: NextRequest) {
     };
 
     // Get counts by level for a table
-    const getLevelCounts = async (tableName: string, isPendingTable: boolean) => {
-      const counts = { level1: 0, level2: 0, level3: 0 };
+    const getLevelCounts = async (tableName: string, filterType: "default" | "pending" | "discarded" = "default") => {
+      const counts = { level1: 0, level2: 0, level3: 0, level4: 0, level5: 0 };
 
-      const baseFilter = isPendingTable ? filterExpressionPending : filterExpression;
-      const attrNames = isPendingTable ? expressionAttributeNames : undefined;
+      let baseFilter = filterExpression;
+      let attrNames = undefined;
 
-      const [level1, level2, level3] = await Promise.all([
-        scanAndCount(tableName, baseFilter + " AND difficulty_level = :level", {
-          ...expressionAttributeValues,
-          ":level": 1,
-        }, attrNames),
-        scanAndCount(tableName, baseFilter + " AND difficulty_level = :level", {
-          ...expressionAttributeValues,
-          ":level": 2,
-        }, attrNames),
-        scanAndCount(tableName, baseFilter + " AND difficulty_level = :level", {
-          ...expressionAttributeValues,
-          ":level": 3,
-        }, attrNames),
+      if (filterType === "pending") {
+        baseFilter = filterExpressionPending;
+        attrNames = expressionAttributeNames;
+      } else if (filterType === "discarded") {
+        baseFilter = filterExpressionDiscarded;
+        attrNames = expressionAttributeNames;
+      }
+
+      // Create attribute values based on filter type
+      const createAttrValues = (level: number) => {
+        if (filterType === "pending") {
+          return { ...baseAttributeValues, ":level": level, ":verifiedStatus": "VERIFIED", ":discardedStatus": "DISCARDED" };
+        } else if (filterType === "discarded") {
+          return { ...baseAttributeValues, ":level": level, ":discardedStatus": "DISCARDED" };
+        }
+        return { ...baseAttributeValues, ":level": level };
+      };
+
+      const [level1, level2, level3, level4, level5] = await Promise.all([
+        scanAndCount(tableName, baseFilter + " AND difficulty_level = :level", createAttrValues(1), attrNames),
+        scanAndCount(tableName, baseFilter + " AND difficulty_level = :level", createAttrValues(2), attrNames),
+        scanAndCount(tableName, baseFilter + " AND difficulty_level = :level", createAttrValues(3), attrNames),
+        scanAndCount(tableName, baseFilter + " AND difficulty_level = :level", createAttrValues(4), attrNames),
+        scanAndCount(tableName, baseFilter + " AND difficulty_level = :level", createAttrValues(5), attrNames),
       ]);
 
       counts.level1 = level1;
       counts.level2 = level2;
       counts.level3 = level3;
+      counts.level4 = level4;
+      counts.level5 = level5;
 
       return counts;
     };
 
-    // Fetch total counts from both tables in parallel
-    // For pending table, exclude questions with status=VERIFIED
-    const [pendingTotal, verifiedTotal] = await Promise.all([
-      scanAndCount(TABLES.QUESTIONS_PENDING, filterExpressionPending, expressionAttributeValues, expressionAttributeNames),
-      scanAndCount(TABLES.QUESTIONS_VERIFIED, filterExpression, expressionAttributeValues),
+    // Fetch total counts from all categories in parallel
+    const [pendingTotal, verifiedTotal, discardedTotal] = await Promise.all([
+      scanAndCount(TABLES.QUESTIONS_PENDING, filterExpressionPending, { ...baseAttributeValues, ":verifiedStatus": "VERIFIED", ":discardedStatus": "DISCARDED" }, expressionAttributeNames),
+      scanAndCount(TABLES.QUESTIONS_VERIFIED, filterExpression, baseAttributeValues),
+      scanAndCount(TABLES.QUESTIONS_PENDING, filterExpressionDiscarded, { ...baseAttributeValues, ":discardedStatus": "DISCARDED" }, expressionAttributeNames),
     ]);
 
-    const [pendingLevelCounts, verifiedLevelCounts] = await Promise.all([
-      getLevelCounts(TABLES.QUESTIONS_PENDING, true),
-      getLevelCounts(TABLES.QUESTIONS_VERIFIED, false),
+    const [pendingLevelCounts, verifiedLevelCounts, discardedLevelCounts] = await Promise.all([
+      getLevelCounts(TABLES.QUESTIONS_PENDING, "pending"),
+      getLevelCounts(TABLES.QUESTIONS_VERIFIED, "default"),
+      getLevelCounts(TABLES.QUESTIONS_PENDING, "discarded"),
     ]);
 
     const counts = {
@@ -113,6 +131,10 @@ export async function GET(request: NextRequest) {
       verified: {
         total: verifiedTotal,
         ...verifiedLevelCounts,
+      },
+      discarded: {
+        total: discardedTotal,
+        ...discardedLevelCounts,
       },
       total: pendingTotal + verifiedTotal,
     };

@@ -33,12 +33,24 @@ interface QuestionCounts {
     level1: number;
     level2: number;
     level3: number;
+    level4: number;
+    level5: number;
   };
   verified: {
     total: number;
     level1: number;
     level2: number;
     level3: number;
+    level4: number;
+    level5: number;
+  };
+  discarded: {
+    total: number;
+    level1: number;
+    level2: number;
+    level3: number;
+    level4: number;
+    level5: number;
   };
   total: number;
 }
@@ -63,10 +75,11 @@ export default function QuestionsPage() {
   const [counts, setCounts] = useState<QuestionCounts | null>(null);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingCounts, setLoadingCounts] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Filter states
-  const [statusFilter, setStatusFilter] = useState<"all" | "PENDING" | "VERIFIED">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "PENDING" | "VERIFIED" | "DISCARDED">("all");
   const [levelFilter, setLevelFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -87,6 +100,7 @@ export default function QuestionsPage() {
   }, [subject, chapter, topic, statusFilter, levelFilter, currentPage]);
 
   const fetchCounts = async () => {
+    setLoadingCounts(true);
     try {
       const response = await fetch(
         `/api/questions/count?subject=${subject}&chapter=${chapter}&topic=${topic}`
@@ -98,6 +112,8 @@ export default function QuestionsPage() {
       }
     } catch (err) {
       console.error("Error fetching counts:", err);
+    } finally {
+      setLoadingCounts(false);
     }
   };
 
@@ -177,52 +193,147 @@ export default function QuestionsPage() {
         </header>
 
         {/* Stats Cards */}
-        {counts && (
-          <div className="mb-6 grid gap-4 grid-cols-[1fr_2fr_2fr]">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total</p>
-                  </div>
-                  <div className="text-3xl font-bold">{counts.total}</div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Unverified</p>
-                    <div className="mt-1 flex gap-3 text-sm">
-                      <span>L1: <span className="font-semibold">{counts.pending.level1}</span></span>
-                      <span>L2: <span className="font-semibold">{counts.pending.level2}</span></span>
-                      <span>L3: <span className="font-semibold">{counts.pending.level3}</span></span>
+        <div className="mb-6 grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+          {loadingCounts ? (
+            <>
+              {/* Total Card Skeleton */}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="h-4 w-12 bg-muted animate-pulse rounded"></div>
                     </div>
+                    <div className="h-9 w-12 bg-muted animate-pulse rounded"></div>
                   </div>
-                  <div className="text-3xl font-bold">{counts.pending.total}</div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Verified</p>
-                    <div className="mt-1 flex gap-3 text-sm">
-                      <span>L1: <span className="font-semibold">{counts.verified.level1}</span></span>
-                      <span>L2: <span className="font-semibold">{counts.verified.level2}</span></span>
-                      <span>L3: <span className="font-semibold">{counts.verified.level3}</span></span>
+              {/* Unverified Card Skeleton */}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="h-4 w-20 bg-muted animate-pulse rounded mb-2"></div>
+                      <div className="flex gap-2">
+                        <div className="h-3 w-8 bg-muted animate-pulse rounded"></div>
+                        <div className="h-3 w-8 bg-muted animate-pulse rounded"></div>
+                        <div className="h-3 w-8 bg-muted animate-pulse rounded"></div>
+                        <div className="h-3 w-8 bg-muted animate-pulse rounded"></div>
+                        <div className="h-3 w-8 bg-muted animate-pulse rounded"></div>
+                      </div>
                     </div>
+                    <div className="h-9 w-12 bg-muted animate-pulse rounded"></div>
                   </div>
-                  <div className="text-3xl font-bold">{counts.verified.total}</div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                </CardContent>
+              </Card>
+
+              {/* Verified Card Skeleton */}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="h-4 w-20 bg-muted animate-pulse rounded mb-2"></div>
+                      <div className="flex gap-2">
+                        <div className="h-3 w-8 bg-muted animate-pulse rounded"></div>
+                        <div className="h-3 w-8 bg-muted animate-pulse rounded"></div>
+                        <div className="h-3 w-8 bg-muted animate-pulse rounded"></div>
+                        <div className="h-3 w-8 bg-muted animate-pulse rounded"></div>
+                        <div className="h-3 w-8 bg-muted animate-pulse rounded"></div>
+                      </div>
+                    </div>
+                    <div className="h-9 w-12 bg-muted animate-pulse rounded"></div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Discarded Card Skeleton */}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="h-4 w-20 bg-muted animate-pulse rounded mb-2"></div>
+                      <div className="flex gap-2">
+                        <div className="h-3 w-8 bg-muted animate-pulse rounded"></div>
+                        <div className="h-3 w-8 bg-muted animate-pulse rounded"></div>
+                        <div className="h-3 w-8 bg-muted animate-pulse rounded"></div>
+                        <div className="h-3 w-8 bg-muted animate-pulse rounded"></div>
+                        <div className="h-3 w-8 bg-muted animate-pulse rounded"></div>
+                      </div>
+                    </div>
+                    <div className="h-9 w-12 bg-muted animate-pulse rounded"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : counts ? (
+            <>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Total</p>
+                    </div>
+                    <div className="text-3xl font-bold">{counts.total}</div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Unverified</p>
+                      <div className="mt-1 flex gap-2 text-xs">
+                        <span>L1: <span className="font-semibold">{counts.pending.level1}</span></span>
+                        <span>L2: <span className="font-semibold">{counts.pending.level2}</span></span>
+                        <span>L3: <span className="font-semibold">{counts.pending.level3}</span></span>
+                        <span>L4: <span className="font-semibold">{counts.pending.level4}</span></span>
+                        <span>L5: <span className="font-semibold">{counts.pending.level5}</span></span>
+                      </div>
+                    </div>
+                    <div className="text-3xl font-bold">{counts.pending.total}</div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Verified</p>
+                      <div className="mt-1 flex gap-2 text-xs">
+                        <span>L1: <span className="font-semibold">{counts.verified.level1}</span></span>
+                        <span>L2: <span className="font-semibold">{counts.verified.level2}</span></span>
+                        <span>L3: <span className="font-semibold">{counts.verified.level3}</span></span>
+                        <span>L4: <span className="font-semibold">{counts.verified.level4}</span></span>
+                        <span>L5: <span className="font-semibold">{counts.verified.level5}</span></span>
+                      </div>
+                    </div>
+                    <div className="text-3xl font-bold">{counts.verified.total}</div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Discarded</p>
+                      <div className="mt-1 flex gap-2 text-xs">
+                        <span>L1: <span className="font-semibold">{counts.discarded.level1}</span></span>
+                        <span>L2: <span className="font-semibold">{counts.discarded.level2}</span></span>
+                        <span>L3: <span className="font-semibold">{counts.discarded.level3}</span></span>
+                        <span>L4: <span className="font-semibold">{counts.discarded.level4}</span></span>
+                        <span>L5: <span className="font-semibold">{counts.discarded.level5}</span></span>
+                      </div>
+                    </div>
+                    <div className="text-3xl font-bold">{counts.discarded.total}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : null}
+        </div>
 
         {/* Filters */}
         <div className="mb-6 flex flex-wrap items-center gap-4 rounded-lg border bg-card p-4">
@@ -249,6 +360,13 @@ export default function QuestionsPage() {
                 onClick={() => setStatusFilter("VERIFIED")}
               >
                 Verified
+              </Button>
+              <Button
+                size="sm"
+                variant={statusFilter === "DISCARDED" ? "default" : "outline"}
+                onClick={() => setStatusFilter("DISCARDED")}
+              >
+                Discarded
               </Button>
             </div>
           </div>
@@ -285,6 +403,20 @@ export default function QuestionsPage() {
                 onClick={() => setLevelFilter("3")}
               >
                 Level 3
+              </Button>
+              <Button
+                size="sm"
+                variant={levelFilter === "4" ? "default" : "outline"}
+                onClick={() => setLevelFilter("4")}
+              >
+                Level 4
+              </Button>
+              <Button
+                size="sm"
+                variant={levelFilter === "5" ? "default" : "outline"}
+                onClick={() => setLevelFilter("5")}
+              >
+                Level 5
               </Button>
             </div>
           </div>
