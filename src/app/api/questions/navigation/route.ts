@@ -41,45 +41,47 @@ export async function GET(request: NextRequest) {
       expressionAttributeValues[":level"] = parseInt(level);
     }
 
+    // Helper function to scan all pages from a table
+    const scanAllPages = async (tableName: string) => {
+      let allItems: any[] = [];
+      let lastEvaluatedKey: Record<string, any> | undefined = undefined;
+
+      do {
+        const command: ScanCommand = new ScanCommand({
+          TableName: tableName,
+          FilterExpression: filterExpression,
+          ExpressionAttributeValues: expressionAttributeValues,
+          ExclusiveStartKey: lastEvaluatedKey,
+        });
+
+        const response = await docClient.send(command);
+        allItems = allItems.concat(response.Items || []);
+        lastEvaluatedKey = response.LastEvaluatedKey;
+      } while (lastEvaluatedKey);
+
+      return allItems;
+    };
+
     let allQuestions: any[] = [];
 
     if (status === "all") {
-      // Fetch from both tables in parallel
-      const [pendingResponse, verifiedResponse] = await Promise.all([
-        docClient.send(
-          new ScanCommand({
-            TableName: TABLES.QUESTIONS_PENDING,
-            FilterExpression: filterExpression,
-            ExpressionAttributeValues: expressionAttributeValues,
-          })
-        ),
-        docClient.send(
-          new ScanCommand({
-            TableName: TABLES.QUESTIONS_VERIFIED,
-            FilterExpression: filterExpression,
-            ExpressionAttributeValues: expressionAttributeValues,
-          })
-        ),
+      // Fetch from both tables in parallel with full pagination
+      const [pendingItems, verifiedItems] = await Promise.all([
+        scanAllPages(TABLES.QUESTIONS_PENDING),
+        scanAllPages(TABLES.QUESTIONS_VERIFIED),
       ]);
 
       allQuestions = [
-        ...(pendingResponse.Items || []),
-        ...(verifiedResponse.Items || []),
+        ...pendingItems,
+        ...verifiedItems,
       ];
     } else {
-      // Fetch from specific table based on status
+      // Fetch from specific table based on status with full pagination
       const tableName = status === "VERIFIED"
         ? TABLES.QUESTIONS_VERIFIED
         : TABLES.QUESTIONS_PENDING;
 
-      const command: ScanCommand = new ScanCommand({
-        TableName: tableName,
-        FilterExpression: filterExpression,
-        ExpressionAttributeValues: expressionAttributeValues,
-      });
-
-      const response = await docClient.send(command);
-      allQuestions = response.Items || [];
+      allQuestions = await scanAllPages(tableName);
     }
 
     // Sort questions by question_id to maintain consistent order

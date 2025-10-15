@@ -75,30 +75,14 @@ export default function QuestionReviewPage() {
   const fetchQuestion = async () => {
     setLoading(true);
     try {
-      // Fetch from PENDING first, if not found try VERIFIED
-      const pendingResponse = await fetch(
-        `/api/questions?subject=${subject}&chapter=${chapter}&topic=${topic}&status=PENDING`
-      );
-      const pendingData = await pendingResponse.json();
-      let foundQuestion = pendingData.questions?.find(
-        (q: Question) => q.question_id === questionId
-      );
+      const response = await fetch(`/api/questions/${questionId}`);
 
-      if (!foundQuestion) {
-        const verifiedResponse = await fetch(
-          `/api/questions?subject=${subject}&chapter=${chapter}&topic=${topic}&status=VERIFIED`
-        );
-        const verifiedData = await verifiedResponse.json();
-        foundQuestion = verifiedData.questions?.find(
-          (q: Question) => q.question_id === questionId
-        );
-      }
-
-      if (!foundQuestion) {
+      if (!response.ok) {
         throw new Error("Question not found");
       }
 
-      setQuestion(foundQuestion);
+      const data = await response.json();
+      setQuestion(data.question);
     } catch (err) {
       console.error("Error fetching question:", err);
       setError(err instanceof Error ? err.message : "An error occurred");
