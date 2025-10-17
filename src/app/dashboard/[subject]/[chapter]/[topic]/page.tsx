@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -67,6 +67,7 @@ interface Pagination {
 export default function QuestionsPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const subject = params.subject as string;
   const chapter = decodeURIComponent(params.chapter as string);
   const topic = decodeURIComponent(params.topic as string);
@@ -78,14 +79,31 @@ export default function QuestionsPage() {
   const [loadingCounts, setLoadingCounts] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filter states
-  const [statusFilter, setStatusFilter] = useState<"all" | "PENDING" | "VERIFIED" | "DISCARDED">("all");
-  const [levelFilter, setLevelFilter] = useState<string>("all");
-  const [currentPage, setCurrentPage] = useState(1);
+  // Filter states - initialize from URL params
+  const [statusFilter, setStatusFilter] = useState<"all" | "PENDING" | "VERIFIED" | "DISCARDED">(
+    (searchParams.get("status") as "all" | "PENDING" | "VERIFIED" | "DISCARDED") || "all"
+  );
+  const [levelFilter, setLevelFilter] = useState<string>(searchParams.get("level") || "all");
+  const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get("page") || "1"));
 
   const subjectData = SUBJECT_CHAPTER_MAPPINGS.find((s) => s.subject === subject);
   const chapterData = subjectData?.chapters.find((c) => c.name === chapter);
   const chapterDisplayName = chapterData?.display_name || capitalize(chapter);
+
+  // Update URL when filters change
+  const updateURL = (status: string, level: string, page: number) => {
+    const params = new URLSearchParams();
+    if (status !== "all") params.set("status", status);
+    if (level !== "all") params.set("level", level);
+    if (page !== 1) params.set("page", page.toString());
+
+    const queryString = params.toString();
+    const newURL = queryString
+      ? `/dashboard/${subject}/${encodeURIComponent(chapter)}/${encodeURIComponent(topic)}?${queryString}`
+      : `/dashboard/${subject}/${encodeURIComponent(chapter)}/${encodeURIComponent(topic)}`;
+
+    router.replace(newURL, { scroll: false });
+  };
 
   useEffect(() => {
     fetchCounts();
@@ -93,7 +111,12 @@ export default function QuestionsPage() {
 
   useEffect(() => {
     setCurrentPage(1); // Reset to page 1 when filters change
+    updateURL(statusFilter, levelFilter, 1);
   }, [statusFilter, levelFilter]);
+
+  useEffect(() => {
+    updateURL(statusFilter, levelFilter, currentPage);
+  }, [currentPage]);
 
   useEffect(() => {
     fetchQuestions();
@@ -459,15 +482,22 @@ export default function QuestionsPage() {
               </div>
 
               <ul role="list" className="divide-y">
-                {questions.map((question) => (
+                {questions.map((question) => {
+                  // Build URL with filter params
+                  const questionParams = new URLSearchParams();
+                  if (statusFilter !== "all") questionParams.set("status", statusFilter);
+                  if (levelFilter !== "all") questionParams.set("level", levelFilter);
+                  if (currentPage !== 1) questionParams.set("page", currentPage.toString());
+
+                  const questionURL = questionParams.toString()
+                    ? `/dashboard/${subject}/${encodeURIComponent(chapter)}/${encodeURIComponent(topic)}/${question.question_id}?${questionParams.toString()}`
+                    : `/dashboard/${subject}/${encodeURIComponent(chapter)}/${encodeURIComponent(topic)}/${question.question_id}`;
+
+                  return (
                   <li
                     key={question.question_id}
                     className="cursor-pointer px-3 py-3 transition-colors hover:bg-muted/50"
-                    onClick={() =>
-                      router.push(
-                        `/dashboard/${subject}/${encodeURIComponent(chapter)}/${encodeURIComponent(topic)}/${question.question_id}`
-                      )
-                    }
+                    onClick={() => router.push(questionURL)}
                   >
                     <div className="grid grid-cols-12 items-center gap-2" style={{ minHeight: '3rem' }}>
                       <div className="col-span-7">
@@ -489,7 +519,8 @@ export default function QuestionsPage() {
                       </div>
                     </div>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </div>
 

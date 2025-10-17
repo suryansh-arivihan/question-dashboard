@@ -5,6 +5,31 @@ import { docClient, TABLES } from "@/lib/dynamodb";
 
 export const dynamic = "force-dynamic";
 
+// Simple in-memory cache with expiration
+const cache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function getCacheKey(subject: string, chapter: string, topic: string): string {
+  return `${subject}:${chapter}:${topic}`;
+}
+
+function getFromCache(key: string): any | null {
+  const cached = cache.get(key);
+  if (!cached) return null;
+
+  const now = Date.now();
+  if (now - cached.timestamp > CACHE_TTL) {
+    cache.delete(key);
+    return null;
+  }
+
+  return cached.data;
+}
+
+function setCache(key: string, data: any): void {
+  cache.set(key, { data, timestamp: Date.now() });
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { userId } = await auth();
@@ -22,6 +47,14 @@ export async function GET(request: NextRequest) {
         { error: "Subject, chapter, and topic parameters are required" },
         { status: 400 }
       );
+    }
+
+    // Check cache first
+    const cacheKey = getCacheKey(subject, chapter, topic);
+    const cachedData = getFromCache(cacheKey);
+    if (cachedData) {
+      console.log(`[Question Count API] Returning cached data for ${subject}/${chapter}/${topic}`);
+      return NextResponse.json(cachedData);
     }
 
     const filterExpression = "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic";
@@ -140,6 +173,9 @@ export async function GET(request: NextRequest) {
     };
 
     console.log(`[Question Count API] Counts for ${subject}/${chapter}/${topic}:`, counts);
+
+    // Cache the result
+    setCache(cacheKey, counts);
 
     return NextResponse.json(counts);
   } catch (error) {

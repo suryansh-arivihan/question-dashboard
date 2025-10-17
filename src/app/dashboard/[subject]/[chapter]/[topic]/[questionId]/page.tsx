@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,6 +56,7 @@ interface NavigationData {
 export default function QuestionReviewPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const subject = params.subject as string;
   const chapter = decodeURIComponent(params.chapter as string);
   const topic = decodeURIComponent(params.topic as string);
@@ -66,6 +67,23 @@ export default function QuestionReviewPage() {
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [navigation, setNavigation] = useState<NavigationData | null>(null);
+
+  // Helper function to build back URL with preserved filters
+  const buildBackURL = () => {
+    const status = searchParams.get("status");
+    const level = searchParams.get("level");
+    const page = searchParams.get("page");
+
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (level) params.set("level", level);
+    if (page) params.set("page", page);
+
+    const queryString = params.toString();
+    const baseURL = `/dashboard/${subject}/${encodeURIComponent(chapter)}/${encodeURIComponent(topic)}`;
+
+    return queryString ? `${baseURL}?${queryString}` : baseURL;
+  };
 
   useEffect(() => {
     fetchQuestion();
@@ -129,10 +147,8 @@ export default function QuestionReviewPage() {
       }
 
       toast.success("Question verified successfully!");
-      // Navigate back to questions list
-      router.push(
-        `/dashboard/${subject}/${encodeURIComponent(chapter)}/${encodeURIComponent(topic)}`
-      );
+      // Navigate back to questions list with preserved filters
+      router.push(buildBackURL());
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to verify question"
@@ -142,10 +158,7 @@ export default function QuestionReviewPage() {
     }
   };
 
-  const goBack = () =>
-    router.push(
-      `/dashboard/${subject}/${encodeURIComponent(chapter)}/${encodeURIComponent(topic)}`
-    );
+  const goBack = () => router.push(buildBackURL());
 
   if (loading) {
     return (
