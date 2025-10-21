@@ -41,11 +41,15 @@ export interface GenerationQueueEntry {
   createdAt: number;
   updatedAt: number;
   summary?: {
-    level_1?: LevelSummary;
-    level_2?: LevelSummary;
-    level_3?: LevelSummary;
-    level_4?: LevelSummary;
-    level_5?: LevelSummary;
+    levels_summary?: {
+      level_1?: LevelSummary;
+      level_2?: LevelSummary;
+      level_3?: LevelSummary;
+      level_4?: LevelSummary;
+      level_5?: LevelSummary;
+    };
+    overall_status?: string;
+    total_generated?: number;
   };
 }
 
@@ -105,6 +109,39 @@ export interface ReadyToGoRequest {
 export interface ReadyToGoResponse {
   success: boolean;
   queueId: string;
+  message: string;
+  queue_id?: string;
+  status?: string;
+  position?: number;
+  queue_size?: number;
+  estimated_wait_seconds?: number;
+}
+
+export interface QueueStatusResponse {
+  queue_id: string;
+  status: "QUEUED" | "IN_PROGRESS" | "COMPLETED" | "FAILED" | "CANCELLED";
+  position?: number;
+  estimated_wait_seconds?: number;
+  enqueued_at?: number;
+  started_at?: number;
+  completed_at?: number;
+  summary?: {
+    levels_summary?: {
+      level_1?: LevelSummary;
+      level_2?: LevelSummary;
+      level_3?: LevelSummary;
+      level_4?: LevelSummary;
+      level_5?: LevelSummary;
+    };
+    overall_status?: string;
+    total_generated?: number;
+  };
+  error?: string;
+}
+
+export interface QueueCancelResponse {
+  queue_id: string;
+  status: string;
   message: string;
 }
 

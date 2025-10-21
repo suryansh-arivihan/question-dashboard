@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { ScanCommand } from "@aws-sdk/lib-dynamodb";
+import { ScanCommand, ScanCommandOutput } from "@aws-sdk/lib-dynamodb";
 import { docClient, TABLES } from "@/lib/dynamodb";
 
 export const dynamic = "force-dynamic";
@@ -57,108 +57,112 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(cachedData);
     }
 
-    const filterExpression = "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic";
-    // For pending table, exclude VERIFIED and DISCARDED questions
-    const filterExpressionPending = "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic AND (attribute_not_exists(#status) OR (#status <> :verifiedStatus AND #status <> :discardedStatus))";
-    // For discarded questions only
-    const filterExpressionDiscarded = "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic AND #status = :discardedStatus";
+    // Step 1: Get verified counts from the mappings table (fast!)
+    const mappingCommand = new ScanCommand({
+      TableName: TABLES.MAPPINGS,
+      FilterExpression: "exam = :exam AND subject = :subject AND chapter = :chapter AND topic = :topic",
+      ExpressionAttributeValues: {
+        ":exam": "neet",
+        ":subject": subject.toLowerCase(),
+        ":chapter": chapter.toLowerCase(),
+        ":topic": topic.toLowerCase(),
+      },
+    });
 
-    const baseAttributeValues: Record<string, any> = {
-      ":subject": subject.toLowerCase(),
-      ":chapter": chapter.toLowerCase(),
-      ":topic": topic.toLowerCase(),
+    const mappingResponse = await docClient.send(mappingCommand);
+    const mapping = mappingResponse.Items?.[0];
+
+    // Extract verified counts from mapping (or default to 0)
+    const verifiedLevelCounts = {
+      level1: mapping?.VerifiedLevel1 || 0,
+      level2: mapping?.VerifiedLevel2 || 0,
+      level3: mapping?.VerifiedLevel3 || 0,
+      level4: mapping?.VerifiedLevel4 || 0,
+      level5: mapping?.VerifiedLevel5 || 0,
     };
 
-    const expressionAttributeNames = {
-      "#status": "status",
+    const verifiedTotal = verifiedLevelCounts.level1 + verifiedLevelCounts.level2 +
+                          verifiedLevelCounts.level3 + verifiedLevelCounts.level4 +
+                          verifiedLevelCounts.level5;
+
+    // Step 2: Scan pending table ONCE and filter in memory by level
+    const pendingCommand = new ScanCommand({
+      TableName: TABLES.QUESTIONS_PENDING,
+      FilterExpression: "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic AND (attribute_not_exists(#status) OR (#status <> :verifiedStatus AND #status <> :discardedStatus))",
+      ExpressionAttributeNames: {
+        "#status": "status",
+      },
+      ExpressionAttributeValues: {
+        ":subject": subject.toLowerCase(),
+        ":chapter": chapter.toLowerCase(),
+        ":topic": topic.toLowerCase(),
+        ":verifiedStatus": "VERIFIED",
+        ":discardedStatus": "DISCARDED",
+      },
+    });
+
+    let pendingQuestions: any[] = [];
+    let lastEvaluatedKey: Record<string, any> | undefined = undefined;
+
+    do {
+      const command: ScanCommand = new ScanCommand({
+        ...pendingCommand.input,
+        ExclusiveStartKey: lastEvaluatedKey,
+      });
+      const response: ScanCommandOutput = await docClient.send(command);
+      pendingQuestions.push(...(response.Items || []));
+      lastEvaluatedKey = response.LastEvaluatedKey;
+    } while (lastEvaluatedKey);
+
+    // Count by level in memory
+    const pendingLevelCounts = {
+      level1: pendingQuestions.filter(q => q.difficulty_level === 1).length,
+      level2: pendingQuestions.filter(q => q.difficulty_level === 2).length,
+      level3: pendingQuestions.filter(q => q.difficulty_level === 3).length,
+      level4: pendingQuestions.filter(q => q.difficulty_level === 4).length,
+      level5: pendingQuestions.filter(q => q.difficulty_level === 5).length,
     };
 
-    // Helper function to scan all pages and count items
-    const scanAndCount = async (tableName: string, filterExpr: string, attrValues: Record<string, any>, attrNames?: Record<string, string>) => {
-      let count = 0;
-      let lastEvaluatedKey: Record<string, any> | undefined = undefined;
+    // Step 3: Scan for discarded ONCE and filter in memory
+    const discardedCommand = new ScanCommand({
+      TableName: TABLES.QUESTIONS_PENDING,
+      FilterExpression: "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic AND #status = :discardedStatus",
+      ExpressionAttributeNames: {
+        "#status": "status",
+      },
+      ExpressionAttributeValues: {
+        ":subject": subject.toLowerCase(),
+        ":chapter": chapter.toLowerCase(),
+        ":topic": topic.toLowerCase(),
+        ":discardedStatus": "DISCARDED",
+      },
+    });
 
-      do {
-        const scanParams: any = {
-          TableName: tableName,
-          FilterExpression: filterExpr,
-          ExpressionAttributeValues: attrValues,
-          Select: "COUNT",
-          ExclusiveStartKey: lastEvaluatedKey,
-        };
+    let discardedQuestions: any[] = [];
+    lastEvaluatedKey = undefined;
 
-        if (attrNames) {
-          scanParams.ExpressionAttributeNames = attrNames;
-        }
+    do {
+      const command: ScanCommand = new ScanCommand({
+        ...discardedCommand.input,
+        ExclusiveStartKey: lastEvaluatedKey,
+      });
+      const response: ScanCommandOutput = await docClient.send(command);
+      discardedQuestions.push(...(response.Items || []));
+      lastEvaluatedKey = response.LastEvaluatedKey;
+    } while (lastEvaluatedKey);
 
-        const command: ScanCommand = new ScanCommand(scanParams);
-
-        const response = await docClient.send(command);
-        count += response.Count || 0;
-        lastEvaluatedKey = response.LastEvaluatedKey;
-      } while (lastEvaluatedKey);
-
-      return count;
+    // Count by level in memory
+    const discardedLevelCounts = {
+      level1: discardedQuestions.filter(q => q.difficulty_level === 1).length,
+      level2: discardedQuestions.filter(q => q.difficulty_level === 2).length,
+      level3: discardedQuestions.filter(q => q.difficulty_level === 3).length,
+      level4: discardedQuestions.filter(q => q.difficulty_level === 4).length,
+      level5: discardedQuestions.filter(q => q.difficulty_level === 5).length,
     };
-
-    // Get counts by level for a table
-    const getLevelCounts = async (tableName: string, filterType: "default" | "pending" | "discarded" = "default") => {
-      const counts = { level1: 0, level2: 0, level3: 0, level4: 0, level5: 0 };
-
-      let baseFilter = filterExpression;
-      let attrNames = undefined;
-
-      if (filterType === "pending") {
-        baseFilter = filterExpressionPending;
-        attrNames = expressionAttributeNames;
-      } else if (filterType === "discarded") {
-        baseFilter = filterExpressionDiscarded;
-        attrNames = expressionAttributeNames;
-      }
-
-      // Create attribute values based on filter type
-      const createAttrValues = (level: number) => {
-        if (filterType === "pending") {
-          return { ...baseAttributeValues, ":level": level, ":verifiedStatus": "VERIFIED", ":discardedStatus": "DISCARDED" };
-        } else if (filterType === "discarded") {
-          return { ...baseAttributeValues, ":level": level, ":discardedStatus": "DISCARDED" };
-        }
-        return { ...baseAttributeValues, ":level": level };
-      };
-
-      const [level1, level2, level3, level4, level5] = await Promise.all([
-        scanAndCount(tableName, baseFilter + " AND difficulty_level = :level", createAttrValues(1), attrNames),
-        scanAndCount(tableName, baseFilter + " AND difficulty_level = :level", createAttrValues(2), attrNames),
-        scanAndCount(tableName, baseFilter + " AND difficulty_level = :level", createAttrValues(3), attrNames),
-        scanAndCount(tableName, baseFilter + " AND difficulty_level = :level", createAttrValues(4), attrNames),
-        scanAndCount(tableName, baseFilter + " AND difficulty_level = :level", createAttrValues(5), attrNames),
-      ]);
-
-      counts.level1 = level1;
-      counts.level2 = level2;
-      counts.level3 = level3;
-      counts.level4 = level4;
-      counts.level5 = level5;
-
-      return counts;
-    };
-
-    // Fetch total counts from all categories in parallel
-    const [pendingTotal, verifiedTotal, discardedTotal] = await Promise.all([
-      scanAndCount(TABLES.QUESTIONS_PENDING, filterExpressionPending, { ...baseAttributeValues, ":verifiedStatus": "VERIFIED", ":discardedStatus": "DISCARDED" }, expressionAttributeNames),
-      scanAndCount(TABLES.QUESTIONS_VERIFIED, filterExpression, baseAttributeValues),
-      scanAndCount(TABLES.QUESTIONS_PENDING, filterExpressionDiscarded, { ...baseAttributeValues, ":discardedStatus": "DISCARDED" }, expressionAttributeNames),
-    ]);
-
-    const [pendingLevelCounts, verifiedLevelCounts, discardedLevelCounts] = await Promise.all([
-      getLevelCounts(TABLES.QUESTIONS_PENDING, "pending"),
-      getLevelCounts(TABLES.QUESTIONS_VERIFIED, "default"),
-      getLevelCounts(TABLES.QUESTIONS_PENDING, "discarded"),
-    ]);
 
     const counts = {
       pending: {
-        total: pendingTotal,
+        total: pendingQuestions.length,
         ...pendingLevelCounts,
       },
       verified: {
@@ -166,10 +170,10 @@ export async function GET(request: NextRequest) {
         ...verifiedLevelCounts,
       },
       discarded: {
-        total: discardedTotal,
+        total: discardedQuestions.length,
         ...discardedLevelCounts,
       },
-      total: pendingTotal + verifiedTotal,
+      total: pendingQuestions.length + verifiedTotal,
     };
 
     console.log(`[Question Count API] Counts for ${subject}/${chapter}/${topic}:`, counts);
