@@ -41,16 +41,13 @@ export interface GenerationQueueEntry {
   createdAt: number;
   updatedAt: number;
   summary?: {
-    levels_summary?: {
-      level_1?: LevelSummary;
-      level_2?: LevelSummary;
-      level_3?: LevelSummary;
-      level_4?: LevelSummary;
-      level_5?: LevelSummary;
-    };
-    overall_status?: string;
-    total_generated?: number;
+    level_1?: LevelSummary;
+    level_2?: LevelSummary;
+    level_3?: LevelSummary;
+    level_4?: LevelSummary;
+    level_5?: LevelSummary;
   };
+  error?: string;
 }
 
 export interface LevelSummary {

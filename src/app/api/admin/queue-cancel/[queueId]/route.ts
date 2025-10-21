@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { queueId: string } }
+  { params }: { params: Promise<{ queueId: string }> }
 ) {
   try {
     // Verify user is authenticated
@@ -14,7 +14,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { queueId } = params;
+    const { queueId } = await params;
 
     if (!queueId) {
       return NextResponse.json(

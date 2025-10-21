@@ -24,9 +24,9 @@ export function PipelineHistoryModal({
 }: PipelineHistoryModalProps) {
   const [entries, setEntries] = useState<GenerationQueueEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [isAutoRefreshing, setIsAutoRefreshing] = useState(false);
 
   const toggleEntry = (entryId: string) => {
     setExpandedEntries((prev) => {
@@ -40,14 +40,7 @@ export function PipelineHistoryModal({
     });
   };
 
-  const fetchHistory = useCallback(async (showRefreshIndicator = false) => {
-    if (showRefreshIndicator) {
-      setIsRefreshing(true);
-    } else if (entries.length === 0) {
-      // Only show loading spinner on initial load
-      setIsLoading(true);
-    }
-
+  const fetchHistory = useCallback(async () => {
     try {
       const response = await fetch(
         `/api/admin/pipeline-history?topicId=${encodeURIComponent(topicId)}`
@@ -63,25 +56,20 @@ export function PipelineHistoryModal({
       toast.error(
         error instanceof Error ? error.message : "Failed to fetch pipeline history"
       );
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
     }
-  }, [topicId, entries.length]);
-
-  const handleManualRefresh = () => {
-    fetchHistory(true);
-  };
+  }, [topicId]);
 
   useEffect(() => {
     if (open && topicId) {
-      // Initial fetch
-      fetchHistory();
+      // Initial fetch with loading state
+      setIsLoading(true);
+      fetchHistory().finally(() => setIsLoading(false));
 
-      // Set up auto-refresh interval
+      // Set up auto-refresh interval (refresh every 10 seconds while modal is open)
+      setIsAutoRefreshing(true);
       intervalRef.current = setInterval(() => {
         fetchHistory();
-      }, 5000); // Refresh every 5 seconds
+      }, 10000);
 
       return () => {
         // Clean up interval when modal closes
@@ -89,13 +77,8 @@ export function PipelineHistoryModal({
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
+        setIsAutoRefreshing(false);
       };
-    } else {
-      // Clear interval if modal is closed
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
     }
   }, [open, topicId, fetchHistory]);
 
@@ -184,10 +167,6 @@ export function PipelineHistoryModal({
     }
   };
 
-  const hasActiveEntries = entries.some(
-    (e) => e.status === "IN_PROGRESS" || e.status === "QUEUED"
-  );
-
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[85vh] p-0">
@@ -196,23 +175,16 @@ export function PipelineHistoryModal({
             <DialogTitle className="text-xl font-semibold">
               Pipeline History - {topicDisplayName}
             </DialogTitle>
-            <div className="flex items-center gap-2">
-              {hasActiveEntries && (
-                <Badge variant="secondary" className="text-xs">
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  Auto-refreshing
-                </Badge>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleManualRefresh}
-                disabled={isRefreshing}
-                className="h-8"
-              >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchHistory}
+              disabled={isLoading}
+              className="h-8"
+              title={isAutoRefreshing ? "Auto-refreshing every 10s" : "Refresh"}
+            >
+              <RefreshCw className={`h-4 w-4 ${isAutoRefreshing ? "animate-spin" : ""}`} />
+            </Button>
           </div>
         </DialogHeader>
 
@@ -245,16 +217,21 @@ export function PipelineHistoryModal({
                         {/* Left: Status badge with generated count */}
                         <div className="flex-shrink-0 flex flex-col items-center gap-2">
                           {getStatusBadge(entry.status)}
-                          {entry.summary?.total_generated !== undefined && (
-                            <div className="text-center">
-                              <div className="text-2xl font-bold text-green-600 leading-none">
-                                {entry.summary.total_generated}
+                          {entry.summary && (() => {
+                            const totalGenerated = Object.values(entry.summary)
+                              .filter((level): level is NonNullable<typeof level> => level !== undefined)
+                              .reduce((sum, level) => sum + (level.generated_count || 0), 0);
+                            return totalGenerated > 0 ? (
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-green-600 leading-none">
+                                  {totalGenerated}
+                                </div>
+                                <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium mt-0.5">
+                                  Generated
+                                </div>
                               </div>
-                              <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium mt-0.5">
-                                Generated
-                              </div>
-                            </div>
-                          )}
+                            ) : null;
+                          })()}
                         </div>
 
                         {/* Center: Date and duration */}
@@ -309,18 +286,14 @@ export function PipelineHistoryModal({
                       </div>
 
                       {/* Level Details Section */}
-                      {entry.summary?.levels_summary && (
+                      {entry.summary && Object.keys(entry.summary).length > 0 && (
                         <div className="px-6 py-5 space-y-4">
                           <div className="flex items-center justify-between mb-2">
                             <h4 className="text-sm font-semibold text-foreground">Generation Breakdown</h4>
-                            {entry.summary.overall_status && (
-                              <Badge variant="outline" className="text-xs font-medium">
-                                {entry.summary.overall_status}
-                              </Badge>
-                            )}
                           </div>
                           <div className="space-y-3">
-                            {Object.entries(entry.summary.levels_summary)
+                            {Object.entries(entry.summary)
+                              .filter((item): item is [string, NonNullable<typeof item[1]>] => item[1] !== undefined)
                               .sort(([, a], [, b]) => a.level - b.level)
                               .map(([levelKey, levelData]) => (
                               <div
