@@ -1,9 +1,9 @@
 /**
  * Static subject-chapter mappings extracted from DynamoDB
- * Generated on: 2025-10-12T21:13:59.328Z
+ * Generated on: 2025-10-25T12:13:59.328Z
  * Total subjects: 4
- * Total chapters: 81
- * Total topics: 2594
+ * Total chapters: 82
+ * Total topics: 2595
  */
 
 export interface SubjectChapterMapping {
@@ -333,6 +333,11 @@ export const SUBJECT_CHAPTER_MAPPINGS: SubjectChapterMapping[] = [
         "name": "gravitation",
         "display_name": "Gravitation",
         "topicCount": 41
+      },
+      {
+        "name" : "kinematics",
+        "display_name": "Kinematics",
+        "topicCount": 76
       },
       {
         "name": "kinetic theory",
