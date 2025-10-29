@@ -505,16 +505,24 @@ function transformToExcelFormat(
     // Generate sequential question codes
     const questionCode = `CHENEETENGBCCMCQ${index + 1}`;
 
-    // Map level to text
+    // Map level to text (just the word, no number prefix)
     const levelMap: Record<number, string> = {
-      1: "1=EASY",
-      2: "2=MEDIUM",
-      3: "3=HARD",
+      1: "EASY",
+      2: "MEDIUM",
+      3: "HARD",
     };
 
     // Map question type
     const questionTypeMap: Record<string, string> = {
       MCQ: "MULTIPLE_CHOICE_QUESTION",
+    };
+
+    // Map answer letter to number (A->1, B->2, C->3, D->4)
+    const answerMap: Record<string, string> = {
+      A: "1",
+      B: "2",
+      C: "3",
+      D: "4",
     };
 
     // Extract options
@@ -540,7 +548,7 @@ function transformToExcelFormat(
       optionc_image: optionC?.image || "",
       optiond: optionD?.text || "",
       optiond_image: optionD?.image || "",
-      answer: q.answer, // Just the letter: A, B, C, or D
+      answer: answerMap[q.answer] || q.answer, // Convert A/B/C/D to 1/2/3/4
       explanation: q.solution || "",
       image_explanation: q.solution_images?.join(", ") || "",
       key_concept: q.key_concept || "",
