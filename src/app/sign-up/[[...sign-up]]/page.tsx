@@ -82,7 +82,7 @@ export default function SignUpPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <SignUp
-        forceRedirectUrl="/dashboard"
+        fallbackRedirectUrl="/dashboard"
         signInUrl="/sign-in"
         appearance={{
           baseTheme: undefined,
