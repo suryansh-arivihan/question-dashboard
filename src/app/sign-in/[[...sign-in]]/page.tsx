@@ -1,6 +1,22 @@
+"use client";
+
 import { SignIn } from "@clerk/nextjs";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
+import { useAuth } from "@clerk/nextjs";
 
 export default function SignInPage() {
+  const { isSignedIn } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (isSignedIn) {
+      const redirectUrl = searchParams.get("redirect_url") || "/dashboard";
+      router.push(redirectUrl);
+    }
+  }, [isSignedIn, router, searchParams]);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <SignIn

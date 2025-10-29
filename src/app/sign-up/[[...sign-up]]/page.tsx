@@ -1,7 +1,9 @@
 "use client";
 
 import { SignUp } from "@clerk/nextjs";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -10,6 +12,16 @@ export default function SignUpPage() {
   const [isValidated, setIsValidated] = useState(false);
   const [error, setError] = useState("");
   const [isValidating, setIsValidating] = useState(false);
+  const { isSignedIn } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (isSignedIn) {
+      const redirectUrl = searchParams.get("redirect_url") || "/dashboard";
+      router.push(redirectUrl);
+    }
+  }, [isSignedIn, router, searchParams]);
 
   const validateInviteCode = async () => {
     if (!inviteCode.trim()) {
