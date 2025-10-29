@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { ScanCommand } from "@aws-sdk/lib-dynamodb";
+import { ScanCommand, ScanCommandOutput } from "@aws-sdk/lib-dynamodb";
 import { docClient, TABLES } from "@/lib/dynamodb";
 
 export const dynamic = "force-dynamic";
@@ -48,18 +48,27 @@ export async function GET(request: NextRequest) {
 
     // Get all topics for this chapter from mappings
     // The mappings table contains up-to-date counts maintained by Lambda
-    const mappingsCommand = new ScanCommand({
-      TableName: TABLES.MAPPINGS,
-      FilterExpression: "exam = :exam AND subject = :subject AND chapter = :chapter",
-      ExpressionAttributeValues: {
-        ":exam": "neet",
-        ":subject": subject.toLowerCase(),
-        ":chapter": chapter.toLowerCase(),
-      },
-    });
+    // Handle pagination to ensure we get ALL topics
+    let mappings: any[] = [];
+    let lastEvaluatedKey: Record<string, any> | undefined = undefined;
 
-    const mappingsResponse = await docClient.send(mappingsCommand);
-    const mappings = mappingsResponse.Items || [];
+    do {
+      const mappingsCommand: ScanCommand = new ScanCommand({
+        TableName: TABLES.MAPPINGS,
+        FilterExpression: "exam = :exam AND subject = :subject AND chapter = :chapter",
+        ExpressionAttributeValues: {
+          ":exam": "neet",
+          ":subject": subject.toLowerCase(),
+          ":chapter": chapter.toLowerCase(),
+        },
+        ExclusiveStartKey: lastEvaluatedKey,
+      });
+
+      const mappingsResponse: ScanCommandOutput = await docClient.send(mappingsCommand);
+      mappings.push(...(mappingsResponse.Items || []));
+      lastEvaluatedKey = mappingsResponse.LastEvaluatedKey;
+    } while (lastEvaluatedKey);
+
     console.log("[Topics API] Found", mappings.length, "topics in mappings");
 
     if (mappings.length === 0) {
