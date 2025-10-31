@@ -126,8 +126,8 @@ async function fetchQuestionsForTopicLevel(
       }
     } while (lastEvaluatedKey);
 
-    // Sort by createdAt for consistency
-    questions.sort((a, b) => a.createdAt - b.createdAt);
+    // Sort by createdAt in descending order (newest first)
+    questions.sort((a, b) => b.createdAt - a.createdAt);
 
     return questions.slice(0, count);
   } catch (error) {
