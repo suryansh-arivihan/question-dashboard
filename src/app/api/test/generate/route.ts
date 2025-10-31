@@ -96,7 +96,7 @@ async function fetchQuestionsForTopicLevel(
 
   try {
     do {
-      const command = new ScanCommand({
+      const command: ScanCommand = new ScanCommand({
         TableName: VERIFIED_QUESTIONS_TABLE,
         FilterExpression:
           "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic AND difficulty_level = :level",
