@@ -24,6 +24,7 @@ interface TopicCardProps {
   verifiedLevel1?: number;
   verifiedLevel2?: number;
   verifiedLevel3?: number;
+  isAdmin?: boolean;
 }
 
 export function TopicCard({
@@ -40,6 +41,7 @@ export function TopicCard({
   verifiedLevel1 = 0,
   verifiedLevel2 = 0,
   verifiedLevel3 = 0,
+  isAdmin = false,
 }: TopicCardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [queueStatus, setQueueStatus] = useState<QueueStatusResponse | null>(null);
@@ -248,60 +250,64 @@ export function TopicCard({
           </div>
         </CardContent>
         <CardFooter className="flex gap-2">
-          <Button
-            variant="success"
-            onClick={() => setShowConfirmDialog(true)}
-            disabled={isLoading || isActive}
-            className="flex-1"
-          >
-            {isQueued ? (
-              <>
+          {isAdmin && (
+            <>
+              <Button
+                variant="success"
+                onClick={() => setShowConfirmDialog(true)}
+                disabled={isLoading || isActive}
+                className="flex-1"
+              >
+                {isQueued ? (
+                  <>
+                    <Clock className="h-4 w-4" />
+                    Queued
+                  </>
+                ) : isInProgress ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Processing
+                  </>
+                ) : isCompleted ? (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Completed
+                  </>
+                ) : isFailed ? (
+                  <>
+                    <XCircle className="h-4 w-4" />
+                    Failed
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="h-4 w-4" />
+                    {isLoading ? "Queueing..." : "Ready to Go"}
+                  </>
+                )}
+              </Button>
+
+              {/* Cancel button - only show when queued */}
+              {isQueued && (
+                <Button
+                  variant="destructive"
+                  onClick={handleCancelQueue}
+                  className="px-3"
+                  title="Cancel Queue Entry"
+                >
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                onClick={() => setShowHistoryModal(true)}
+                className="px-3"
+                title="View Pipeline History"
+              >
                 <Clock className="h-4 w-4" />
-                Queued
-              </>
-            ) : isInProgress ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Processing
-              </>
-            ) : isCompleted ? (
-              <>
-                <CheckCircle2 className="h-4 w-4" />
-                Completed
-              </>
-            ) : isFailed ? (
-              <>
-                <XCircle className="h-4 w-4" />
-                Failed
-              </>
-            ) : (
-              <>
-                <Rocket className="h-4 w-4" />
-                {isLoading ? "Queueing..." : "Ready to Go"}
-              </>
-            )}
-          </Button>
-
-          {/* Cancel button - only show when queued */}
-          {isQueued && (
-            <Button
-              variant="destructive"
-              onClick={handleCancelQueue}
-              className="px-3"
-              title="Cancel Queue Entry"
-            >
-              <XCircle className="h-4 w-4" />
-            </Button>
+              </Button>
+            </>
           )}
-
-          <Button
-            variant="outline"
-            onClick={() => setShowHistoryModal(true)}
-            className="px-3"
-            title="View Pipeline History"
-          >
-            <Clock className="h-4 w-4" />
-          </Button>
         </CardFooter>
       </Card>
 

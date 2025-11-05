@@ -10,6 +10,7 @@ import { capitalize } from "@/lib/utils";
 import { Loader2, Rocket, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { PipelineHistoryModal } from "@/components/PipelineHistoryModal";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 interface TopicWithStats {
   name: string;
@@ -42,6 +43,7 @@ export default function ChapterPage() {
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [historyTopicId, setHistoryTopicId] = useState<string>("");
   const [historyTopicName, setHistoryTopicName] = useState<string>("");
+  const { isAdmin } = useIsAdmin();
 
   const subjectData = SUBJECT_CHAPTER_MAPPINGS.find((s) => s.subject === subject);
   const chapterData = subjectData?.chapters.find((c) => c.name === chapter);
@@ -258,31 +260,35 @@ export default function ChapterPage() {
                           >
                             View Questions
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => showHistoryModal(topic)}
-                            title="View Pipeline History"
-                          >
-                            <Clock className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => showConfirmDialog(topic)}
-                            disabled={isQueuing || isQueued}
-                          >
-                            {isQueued ? (
-                              <>
-                                <CheckCircle2 className="h-3 w-3" />
-                                Queued
-                              </>
-                            ) : (
-                              <>
-                                <Rocket className="h-3 w-3" />
-                                {isQueuing ? "Queueing..." : "Ready to Go"}
-                              </>
-                            )}
-                          </Button>
+                          {isAdmin && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => showHistoryModal(topic)}
+                                title="View Pipeline History"
+                              >
+                                <Clock className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => showConfirmDialog(topic)}
+                                disabled={isQueuing || isQueued}
+                              >
+                                {isQueued ? (
+                                  <>
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    Queued
+                                  </>
+                                ) : (
+                                  <>
+                                    <Rocket className="h-3 w-3" />
+                                    {isQueuing ? "Queueing..." : "Ready to Go"}
+                                  </>
+                                )}
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </li>
