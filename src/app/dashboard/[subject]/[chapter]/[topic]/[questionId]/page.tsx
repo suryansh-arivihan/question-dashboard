@@ -172,7 +172,13 @@ function fixLatexDelimiters(text: string): string {
     });
   });
 
-  // Step 3.5: Handle colons after LaTeX expressions (like equations ending with colon before newline)
+  // Step 3.5: Restore protected content before merging
+  protectedContent.forEach((content: string, i: number) => {
+    const placeholder = `__P${i}__`;
+    result = result.split(placeholder).join(content);
+  });
+
+  // Step 3.6: Handle colons after LaTeX expressions (like equations ending with colon before newline)
   result = result.replace(
     /\$([^$\n]+)\$(:)(?=\s*\n)/g,
     (_match, expr, colon) => {
@@ -236,11 +242,6 @@ function fixLatexDelimiters(text: string): string {
   // Step 6: Clean up
   result = result.replace(/\$\s*\$/g, ' ');  // Remove empty delimiters
   result = result.replace(/\$+/g, '$');       // Collapse multiple $ signs
-
-  // Step 7: Restore protected content
-  protectedContent.forEach((content: string, i: number) => {
-    result = result.replace(`__P${i}__`, content);
-  });
 
   return result;
 }
