@@ -58,4 +58,5 @@ export const TABLES = {
   QUESTIONS_PENDING: "NEETAdaptiveQuestionGeneratorData",
   QUESTIONS_VERIFIED: "NEETAdaptiveQuestionGeneratorDataVerified",
   GENERATION_QUEUE: "generation_queue",
+  TEST_GENERATION_QUEUE: "test_generation_queue",
 } as const;

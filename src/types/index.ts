@@ -149,3 +149,49 @@ export interface InviteCodeRequest {
 export interface InviteCodeResponse {
   valid: boolean;
 }
+
+// Test Generation Queue Types
+export interface TestGenerationQueueEntry {
+  id: string;
+  subject: string;
+  chapter_name: string;
+  chapter_display_name: string;
+  status: "QUEUED" | "IN_PROGRESS" | "COMPLETED" | "FAILED";
+  triggered_by: string;
+  createdAt: number;
+  updatedAt: number;
+  numTests: number;
+  testData: TestDataConfig;
+  s3_file_path?: string;
+  s3_file_url?: string;
+  error?: string;
+  subject_chapter: string; // Composite key for GSI: "subject#chapter"
+}
+
+export interface TestDataConfig {
+  [topicName: string]: {
+    [testNum: number]: {
+      [level: number]: number; // level -> question count
+    };
+  };
+}
+
+export interface TestGenerationRequest {
+  subject: string;
+  chapter: string;
+  chapterDisplayName: string;
+  numTests: number;
+  testData: TestDataConfig;
+}
+
+export interface TestGenerationResponse {
+  success: boolean;
+  queueId: string;
+  message: string;
+}
+
+export interface TestHistoryResponse {
+  success: boolean;
+  entries: TestGenerationQueueEntry[];
+  count: number;
+}

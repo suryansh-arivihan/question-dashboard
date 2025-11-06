@@ -17,22 +17,22 @@ import {
 } from "@/components/ui/dialog";
 import { FileSpreadsheet, Loader2, Plus, Minus, X } from "lucide-react";
 import { toast } from "sonner";
+import { TestHistoryModal } from "@/components/TestHistoryModal";
 
 export default function SubjectPage() {
   const router = useRouter();
   const params = useParams();
   const subject = params.subject as string;
-  const [expandedChapters, setExpandedChapters] = useState<Record<string, boolean>>({});
   const [openDialog, setOpenDialog] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStatus, setGenerationStatus] = useState<string>("");
   const [testDialogOpen, setTestDialogOpen] = useState<string | null>(null);
+  const [testHistoryOpen, setTestHistoryOpen] = useState<string | null>(null);
   const [topics, setTopics] = useState<any[]>([]);
   const [loadingTopics, setLoadingTopics] = useState(false);
   const [numTests, setNumTests] = useState(1);
   const [testData, setTestData] = useState<Record<string, Record<number, Record<number, number>>>>({});
   const [isGeneratingTests, setIsGeneratingTests] = useState(false);
-  const [generationProgress, setGenerationProgress] = useState("");
 
   const subjectData = SUBJECT_CHAPTER_MAPPINGS.find((s) => s.subject === subject);
   const chapters = subjectData?.chapters || [];
@@ -141,7 +141,6 @@ export default function SubjectPage() {
 
   const handleGenerateTests = async () => {
     setIsGeneratingTests(true);
-    setGenerationProgress("Validating question availability...");
 
     try {
       // Create topic display name mapping
@@ -179,9 +178,12 @@ export default function SubjectPage() {
         );
       }
 
-      setGenerationProgress("Fetching questions from database...");
+      // Get chapter display name
+      const chapterData = chapters.find(c => c.name === testDialogOpen);
+      const chapterDisplayName = chapterData?.display_name || testDialogOpen || "";
 
-      const response = await fetch("/api/test/generate", {
+      // Enqueue test generation
+      const response = await fetch("/api/test/enqueue", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -189,6 +191,7 @@ export default function SubjectPage() {
         body: JSON.stringify({
           subject,
           chapter: testDialogOpen,
+          chapterDisplayName,
           numTests,
           testData,
         }),
@@ -196,33 +199,26 @@ export default function SubjectPage() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || "Failed to generate tests");
+        throw new Error(error.error || "Failed to queue test generation");
       }
 
-      setGenerationProgress("Generating Excel file...");
+      await response.json();
 
-      // Get the blob from response
-      const blob = await response.blob();
+      toast.success("Test generation queued successfully! You can track progress in the history.", {
+        duration: 5000,
+      });
 
-      setGenerationProgress("Preparing download...");
+      // Save the chapter name before closing dialog
+      const currentChapter = testDialogOpen;
 
-      // Create a download link
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Tests_${subject}_${testDialogOpen}_${Date.now()}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-
-      // Cleanup
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast.success("Tests generated successfully!");
+      // Close the configuration dialog
       setTestDialogOpen(null);
+
+      // Open the history modal to show the queued test
+      setTestHistoryOpen(currentChapter);
     } catch (error) {
-      console.error("Error generating tests:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to generate tests";
+      console.error("Error queueing test generation:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to queue test generation";
 
       // Show detailed error in toast for insufficient questions
       if (errorMessage.includes("Insufficient questions")) {
@@ -232,7 +228,6 @@ export default function SubjectPage() {
       }
     } finally {
       setIsGeneratingTests(false);
-      setGenerationProgress("");
     }
   };
 
@@ -428,7 +423,7 @@ export default function SubjectPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleTestButtonClick(chapter.name)}
+                            onClick={() => setTestHistoryOpen(chapter.name)}
                           >
                             TEST
                           </Button>
@@ -462,88 +457,7 @@ export default function SubjectPage() {
                                   </p>
                                 </div>
 
-                              <div className={`flex-1 px-2 relative ${isGeneratingTests ? 'overflow-hidden' : 'overflow-auto'}`}>
-                                {isGeneratingTests && (
-                                  <div className="absolute inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center">
-                                    <div className="flex flex-col items-center gap-6 w-full max-w-md mx-4 animate-in fade-in duration-300">
-                                      {/* Main spinner with pulsing effect */}
-                                      <div className="relative">
-                                        <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div>
-                                        <Loader2 className="relative h-16 w-16 animate-spin text-primary" />
-                                      </div>
-
-                                      {/* Status text */}
-                                      <div className="text-center space-y-2">
-                                        <p className="text-base font-semibold text-foreground animate-pulse">
-                                          {generationProgress}
-                                        </p>
-                                        <p className="text-sm text-muted-foreground">
-                                          This may take up to a minute, please wait...
-                                        </p>
-                                      </div>
-
-                                      {/* Progress stages with smooth animations */}
-                                      <div className="w-full max-w-sm space-y-3 mt-2">
-                                        {[
-                                          {
-                                            label: "Validating availability",
-                                            active: generationProgress.includes("Validating"),
-                                            completed: generationProgress.includes("Fetching") || generationProgress.includes("Generating") || generationProgress.includes("download")
-                                          },
-                                          {
-                                            label: "Fetching questions",
-                                            active: generationProgress.includes("Fetching"),
-                                            completed: generationProgress.includes("Generating") || generationProgress.includes("download")
-                                          },
-                                          {
-                                            label: "Creating Excel file",
-                                            active: generationProgress.includes("Generating"),
-                                            completed: generationProgress.includes("download")
-                                          },
-                                          {
-                                            label: "Preparing download",
-                                            active: generationProgress.includes("download"),
-                                            completed: false
-                                          },
-                                        ].map((stage, idx) => (
-                                          <div
-                                            key={idx}
-                                            className={`flex items-center gap-3 rounded-lg px-4 py-3 border transition-all duration-500 ${
-                                              stage.active
-                                                ? "bg-primary/5 border-primary/20"
-                                                : stage.completed
-                                                ? "bg-green-500/5 border-green-500/20"
-                                                : "bg-muted/20 border-transparent"
-                                            }`}
-                                          >
-                                            <div className="relative flex-shrink-0">
-                                              {stage.completed ? (
-                                                <div className="h-5 w-5 rounded-full bg-green-500 flex items-center justify-center animate-in zoom-in duration-300">
-                                                  <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                  </svg>
-                                                </div>
-                                              ) : stage.active ? (
-                                                <div className="h-5 w-5 rounded-full bg-primary animate-pulse"></div>
-                                              ) : (
-                                                <div className="h-5 w-5 rounded-full bg-muted"></div>
-                                              )}
-                                            </div>
-                                            <span className={`text-sm font-medium transition-colors ${
-                                              stage.active
-                                                ? "text-foreground"
-                                                : stage.completed
-                                                ? "text-green-600"
-                                                : "text-muted-foreground"
-                                            }`}>
-                                              {stage.label}
-                                            </span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
+                              <div className={`flex-1 px-2 relative overflow-auto`}>
                                 {loadingTopics ? (
                                   <div className="flex items-center justify-center py-12">
                                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -913,6 +827,22 @@ export default function SubjectPage() {
             </div>
           )}
         </section>
+
+        {/* Test History Modal */}
+        {chapters.map((chapter) => (
+          <TestHistoryModal
+            key={`history-${chapter.name}`}
+            open={testHistoryOpen === chapter.name}
+            onClose={() => setTestHistoryOpen(null)}
+            subject={subject}
+            chapter={chapter.name}
+            chapterDisplayName={chapter.display_name}
+            onCreateTest={() => {
+              setTestHistoryOpen(null);
+              handleTestButtonClick(chapter.name);
+            }}
+          />
+        ))}
       </div>
     </main>
   );
