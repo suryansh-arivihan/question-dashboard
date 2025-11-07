@@ -280,17 +280,40 @@ CRITICAL RULES:
 9. Your PRIMARY task is to add $ delimiters AND add blank lines for readability
 
 CRITICAL FORMATTING RULES FOR STEP-BY-STEP SOLUTIONS:
+⚠️ IMPORTANT: When we say "add a blank line", we mean insert an empty line (press Enter/Return twice) ⚠️
+⚠️ DO NOT write the literal text "\\n\\n" - instead create actual blank lines in your output ⚠️
+
 1. ALWAYS add a blank line BEFORE "Given:" section
 2. ALWAYS add a blank line AFTER "Given:" section
 3. ALWAYS add a blank line BEFORE "To Find:" or "To find:" section (or extract and create one if embedded in Given)
 4. ALWAYS add a blank line AFTER "To Find:" or "To find:" section
-5. ALWAYS add a blank line BEFORE each numbered step: "Step 1:", "Step 2:", "1)", "2)", "1.", "2.", etc.
+5. ALWAYS add a blank line BEFORE each numbered step: "Calculation Steps:", "Step 2:", "1)", "2)", "1.", "2.", "(i)" , "(ii)" etc.
 6. ALWAYS add a blank line AFTER each step's content before the next step
 7. Add blank lines between ALL major sections: Given, To Find, Formula, Principle, Calculation Steps, Therefore, Answer, etc.
 8. Each step must be clearly separated with blank lines to show step-by-step progression
 9. After display equations ($$...$$), add a blank line before continuing
-10. If "To Find:" or "We need" is in the Given section, extract it to a separate "To Find:" section with blank lines
+10. If "To Find:" or "We need" is in the Given section, extract it to a separate "To Find:" section with blank lines around it
 11. The solution must be highly readable with clear visual separation between sections and steps
+
+12. 🚨 CRITICAL: STANDALONE EQUATIONS WITH "=" (Important Results/Calculations):
+    - When you have an important equation with "=" that is a KEY RESULT or KEY CALCULATION
+    - Add a blank line BEFORE the equation
+    - Add a blank line AFTER the equation
+    - Example format (notice the actual blank lines, not literal \\n\\n text):
+
+      [some text or step description]
+
+      $\\Delta G^{\\circ}_{3} = \\Delta G^{\\circ}_{1} - \\Delta G^{\\circ}_{2} = \\big[-2F(0.15)\\big] - \\big[-2F(0.34)\\big] = +0.38\\,F.$
+
+      [continuing text]
+
+    - These equations should stand alone on their own line with blank lines before and after
+    - Examples of standalone equations:
+      * $E^{\\circ} = 0.15\\,\\text{V}$
+      * $\\Delta G = -nFE$
+      * $x = 5 + 3y$
+      * Final result equations
+      * Important intermediate calculations
 
 REFERENCE EXAMPLE OF PERFECT LaTeX FORMATTING:
 "Given: $\\theta=\\tan^{-1}(4/3)$ so $\\sin\\theta=4/5$, $\\cos\\theta=3/5$. Ramp inclination $\\beta=30^\\circ$ so $\\tan\\beta=\\dfrac{1}{\\sqrt{3}}$ and $\\cot\\beta=\\sqrt{3}$. Vertical translation speed $V=20\\,\\mathrm{m\\,s^{-1}}$, $c_0=-20\\,\\mathrm{m}$, $g=10\\,\\mathrm{m\\,s^{-2}}$.
@@ -334,7 +357,7 @@ Therefore: [conclusion]
 
 Answer: [final answer if applicable]
 
-CRITICAL REMINDER: Add blank lines BEFORE "Given:", BEFORE "To Find:", BEFORE each "Step N:", and BEFORE "Therefore:" and "Answer:". These blank lines are MANDATORY for clear step-by-step readability.
+CRITICAL REMINDER: Add blank lines (empty lines) BEFORE "Given:", BEFORE "To Find:", BEFORE each "Step N:", BEFORE "Therefore:" and "Answer:", and BEFORE/AFTER standalone equations with "=". These blank lines are MANDATORY for clear step-by-step readability. DO NOT write literal "\\n\\n" text - create actual blank lines!
 
 TEXT TO FIX:
 ${result}`;
@@ -342,8 +365,11 @@ ${result}`;
     const systemPrompt = `You are an expert LaTeX formatter. Your TWO MAIN TASKS are:
 
 TASK 1 (CRITICAL): ADD BLANK LINES
-- Add a blank line BEFORE every numbered step (1), 2), 3), Step 1:, etc.)
+⚠️ When we say "blank line", we mean an actual empty line (pressing Enter/Return twice) ⚠️
+⚠️ DO NOT output literal "\\n\\n" text - create actual blank lines in your output! ⚠️
+- Add a blank line BEFORE every numbered step (1), 2), 3), Step 1:, (i), (ii) etc.)
 - Add blank lines between ALL sections (Given, To Find, Formula, Calculation Steps, Therefore)
+- Add blank lines BEFORE and AFTER standalone equations with "=" (important results/calculations)
 - NEVER remove existing blank lines
 - When in doubt, add MORE blank lines
 
@@ -369,44 +395,56 @@ REQUIRED OUTPUT FORMAT (DO THIS):
 Plain text with $ delimiters like: $g_s = 280\\,\\text{cm s}^{-2}$
 
 🚨 CRITICAL STEP-BY-STEP FORMATTING RULES - BLANK LINES ARE MANDATORY 🚨
+⚠️ REMINDER: "blank line" means an actual empty line (not the text "\\n\\n") ⚠️
 - DO NOT REMOVE BLANK LINES - only add more blank lines
 - ALWAYS add blank lines to separate sections (Given, To Find, Formula, Principle, Calculation Steps, Therefore, Answer)
-- ALWAYS add a blank line BEFORE and AFTER each major section header
-- ALWAYS add a blank line BEFORE each numbered step: "Step 1:", "1)", "1.", "2)", "2.", etc.
-- ALWAYS add a blank line AFTER each step's content
+- ALWAYS add blank lines BEFORE and AFTER each major section header
+- ALWAYS add blank lines BEFORE each numbered step: "Calculation Steps:", "Steps:", "Step 1:", "1)", "1.", "2)", "2.", (i), (ii) etc.
+- ALWAYS add blank lines AFTER each step's content
+- ALWAYS add blank lines BEFORE and AFTER standalone equations with "=" (key results/calculations)
 - If "To Find" or "We need" is embedded in the Given section, extract it to a separate "To Find:" section
-- Each step must stand alone with clear visual separation
+- Each step must stand alone with clear visual separation (using actual blank lines)
 - Solutions must be highly readable with excellent visual structure
 - The step-by-step progression must be crystal clear
 - MORE BLANK LINES = BETTER - prefer on the side of adding too many rather than too few
+- DO NOT output the literal text "\\n\\n" anywhere in your response!
 
-SIMPLE FORMATTING PATTERN TO FOLLOW:
+SIMPLE FORMATTING PATTERN TO FOLLOW (notice the actual blank lines, NOT the text "\\n\\n"):
 
-[start]
+[question text if any]
 
-Given: [parameters only - no "we need" statements]
+Given: $E^{\\circ} = 0.15\\,\\text{V}$, $E^{\\circ}_{2} = 0.34\\,\\text{V}$.
 
-To Find: [what we need to find - extracted from Given if necessary]
+To Find: $E^{\\circ}$ for the reaction
 
 Formula/Principle:
-[formulas if any]
+- $\\Delta G^{\\circ} = -nFE^{\\circ}$
+- Rule 2
 
 Calculation Steps:
 
-1) [First step description]
-[work/equations]
+1) First step description:
 
-2) [Second step description]
-[work/equations]
+$E_{1}^{\\circ} = 0.15\\,\\text{V}$
 
-3) [Third step description]
-[work/equations]
+Some calculation here.
 
-Therefore: [conclusion]
+2) Second step description:
 
-Answer: [final answer]
+$\\Delta G_{1}^{\\circ} = -2F(0.15)$
 
-IMPORTANT: Recognize ALL step formats: "Step 1:", "1)", "1.", etc. - ALL need blank lines before them!
+More work here.
+
+3) Final calculation:
+
+$E^{\\circ} = +0.38\\,\\text{V}$
+
+Therefore: The final answer is $E^{\\circ} = +0.38\\,\\text{V}$.
+
+IMPORTANT:
+- Recognize ALL step formats: "Step 1:", "1)", "1.", "(i)", "(ii)", etc. - ALL need blank lines before them!
+- DO NOT write "\\n\\n" as text - create actual empty lines!
+- See how each section is separated by an actual blank line? That's what we want!
 
 DETAILED EXAMPLE OF PERFECTLY FORMATTED STEP-BY-STEP SOLUTION (NOTE THE BLANK LINES):
 
@@ -420,14 +458,14 @@ Concept analysis (3+ concepts interwoven):
 - Relative-velocity normality: the projectile's velocity relative to the ramp, $\\vec v_{\\text{rel}}=\\big(u\\cos\\theta,\\;u\\sin\\theta-gt-V\\big)$, must be perpendicular to the ramp. Since the ramp's tangent has slope $\\tan\\beta$, the condition for perpendicularity is that the slope of $\\vec v_{\\text{rel}}$ equal $-\\cot\\beta$:
 $$\\frac{u\\sin\\theta-gt-V}{u\\cos\\theta}=-\\cot\\beta.$$
 
-Step 1: Normal-impact (relative-velocity) condition.
+Step 1 / 1.: Normal-impact (relative-velocity) condition.
 $$\\frac{u\\sin\\theta-gt-V}{u\\cos\\theta}=-\\cot\\beta\\;\\Rightarrow\\;u\\sin\\theta-gt-V=-(u\\cos\\theta)\\cot\\beta.$$
 Rearrange to isolate $u$ in terms of $t$:
 $$u\\big(\\sin\\theta+\\cos\\theta\\,\\cot\\beta\\big)=gt+V\\;\\Rightarrow\\; u=\\frac{gt+V}{\\sin\\theta+\\cos\\theta\\,\\cot\\beta}.\\tag{1}$$
 With $\\sin\\theta=4/5$, $\\cos\\theta=3/5$, $\\cot\\beta=\\sqrt{3}$, the denominator is
 $$\\sin\\theta+\\cos\\theta\\,\\cot\\beta=\\frac{4}{5}+\\frac{3}{5}\\sqrt{3}=\\frac{4+3\\sqrt{3}}{5}\\approx1.839230484.\\tag{2}$$
 
-Step 2: Geometric contact (intersection) condition with the translating ramp.
+Step 2 / 2.: Geometric contact (intersection) condition with the translating ramp.
 At time $t$, the projectile's $(x,y)$ must satisfy
 $$u\\sin\\theta\\,t-\\tfrac{1}{2}gt^2=\\big(u\\cos\\theta\\,t\\big)\\tan\\beta+c_0+Vt.$$
 Rearrange and factor $t$ on the left:
@@ -447,7 +485,7 @@ $$\\Delta=b^2-4ac=(-15.0669)^2-4(-2.53347)(20)\\approx429.69,\\quad \\sqrt\\Delt
 $$t=\\frac{-b-\\sqrt\\Delta}{2a}=\\frac{15.0669-20.738}{2(-2.53347)}\\approx\\frac{-5.6711}{-5.0669}\\approx1.119\\,\\mathrm{s}.$$
 (The other root is negative and is discarded.)
 
-Step 3: Compute $u$ from (1).
+Step 3 / 3.: Compute $u$ from (1).
 Using (2) and $t\\approx1.119\\,\\mathrm{s}$,
 $$u=\\frac{gt+V}{\\sin\\theta+\\cos\\theta\\,\\cot\\beta}=\\frac{10(1.119)+20}{1.839230484}\\approx\\frac{31.19}{1.83923}\\approx16.96\\,\\mathrm{m\\,s^{-1}}.$$
 
@@ -542,7 +580,7 @@ Therefore: Answer
 CRITICAL: See how "1)" and "2)" each have a blank line BEFORE them? This is MANDATORY!`;
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4.1-mini',
       messages: [
         {
           role: 'system',
@@ -565,6 +603,14 @@ CRITICAL: See how "1)" and "2)" each have a blank line BEFORE them? This is MAND
       const match = fixed.match(codeBlockRegex);
       if (match) {
         fixed = match[1].trim();
+      }
+
+      // Replace literal "\n\n" strings with actual newlines (in case LLM was too literal)
+      // This handles cases where the LLM outputs the text "\n\n" instead of creating blank lines
+      if (fixed.includes('\\n')) {
+        console.warn('Warning: LLM output contained literal \\n strings. Converting to actual newlines.');
+        fixed = fixed.replace(/\\n\\n/g, '\n\n');
+        fixed = fixed.replace(/\\n/g, '\n');
       }
 
       // Check for common HTML/KaTeX markup indicators
