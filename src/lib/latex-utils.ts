@@ -8,9 +8,22 @@ import OpenAI from 'openai';
 
 /**
  * Normalize delimiters: Convert \( \) and \[ \] to $ and $$
+ * Also wraps LaTeX environments like \begin{align*}...\end{align*}
  */
 function normalizeDelimiters(text: string): string {
   let result = text;
+
+  // Wrap LaTeX environments (align, equation, etc.) with $$
+  result = result.replace(
+    /\\begin\{(align\*?|equation\*?|gather\*?|multline\*?|split)\}([\s\S]*?)\\end\{\1\}/g,
+    (match) => {
+      // Check if already wrapped
+      if (match.startsWith('$$') || match.startsWith('$')) {
+        return match;
+      }
+      return `$$${match}$$`;
+    }
+  );
 
   // Convert \[ \] to $$ (display math)
   result = result.replace(/\\\[/g, '$$');
@@ -19,6 +32,25 @@ function normalizeDelimiters(text: string): string {
   // Convert \( \) to $ (inline math)
   result = result.replace(/\\\(\s*/g, '$');
   result = result.replace(/\s*\\\)/g, '$');
+
+  // Wrap standalone \textbf{...} and similar text commands with $
+  result = result.replace(
+    /\\(textbf|textit|text|mathrm|mathbf)\{([^}]+)\}/g,
+    (match, cmd, content) => {
+      // Check if already inside $ delimiters
+      const beforeMatch = result.substring(0, result.indexOf(match));
+
+      // Count $ before - if odd, we're inside math mode
+      const dollarsBefore = (beforeMatch.match(/\$/g) || []).length;
+
+      // If odd number of $ before, we're inside math mode
+      if (dollarsBefore % 2 !== 0) {
+        return match; // Already in math mode
+      }
+
+      return `$\\${cmd}{${content}}$`;
+    }
+  );
 
   return result;
 }
@@ -266,6 +298,8 @@ KEY PATTERNS TO FOLLOW:
 - Units: $20\\,\\mathrm{m\\,s^{-1}}$ (with \\, spacing)
 - Complex expressions: $E^{\\circ}_{\\mathrm{Cu}^{2+}/\\mathrm{Cu}^{+}}$
 - Display equations with tags: $$equation\\tag{1}$$
+- LaTeX environments: $$\\begin{align*}...\\end{align*}$$
+- Text commands: $\\textbf{Given:}$, $\\text{value}$
 
 STEP-BY-STEP SOLUTION STRUCTURE (preserve line breaks):
 Given: [parameters with proper $ delimiters]
@@ -346,6 +380,8 @@ KEY OBSERVATIONS FROM THIS EXAMPLE:
 - Inline math uses single $: $\\theta=\\tan^{-1}(4/3)$
 - Display equations use $$: $$\\frac{u\\sin\\theta-gt-V}{u\\cos\\theta}=-\\cot\\beta.$$
 - Equation tags stay inside delimiters: $$equation\\tag{1}$$
+- LaTeX environments wrapped: $$\\begin{align*}...\\end{align*}$$
+- Text commands wrapped: $\\textbf{Given:}$, $W=240\\,\\text{m}$
 - Units use \\, spacing: $20\\,\\mathrm{m\\,s^{-1}}$
 - Complex fractions preserved: $\\tfrac{1}{2}$, $\\dfrac{1}{\\sqrt{3}}$
 - All nested structures intact: $\\vec v_{\\text{rel}}=\\big(u\\cos\\theta,\\;u\\sin\\theta-gt-V\\big)$
