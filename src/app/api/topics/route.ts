@@ -18,6 +18,11 @@ interface TopicWithStats {
   verifiedLevel3?: number;
   verifiedLevel4?: number;
   verifiedLevel5?: number;
+  unverifiedLevel1?: number;
+  unverifiedLevel2?: number;
+  unverifiedLevel3?: number;
+  unverifiedLevel4?: number;
+  unverifiedLevel5?: number;
 }
 
 export async function GET(request: NextRequest) {
@@ -105,6 +110,11 @@ export async function GET(request: NextRequest) {
         verifiedLevel3: mapping.VerifiedLevel3 || 0,
         verifiedLevel4: mapping.VerifiedLevel4 || 0,
         verifiedLevel5: mapping.VerifiedLevel5 || 0,
+        unverifiedLevel1: mapping.UnverifiedLevel1 || 0,
+        unverifiedLevel2: mapping.UnverifiedLevel2 || 0,
+        unverifiedLevel3: mapping.UnverifiedLevel3 || 0,
+        unverifiedLevel4: mapping.UnverifiedLevel4 || 0,
+        unverifiedLevel5: mapping.UnverifiedLevel5 || 0,
       };
     });
 

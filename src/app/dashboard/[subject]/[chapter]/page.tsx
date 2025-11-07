@@ -25,6 +25,11 @@ interface TopicWithStats {
   verifiedLevel3?: number;
   verifiedLevel4?: number;
   verifiedLevel5?: number;
+  unverifiedLevel1?: number;
+  unverifiedLevel2?: number;
+  unverifiedLevel3?: number;
+  unverifiedLevel4?: number;
+  unverifiedLevel5?: number;
 }
 
 export default function ChapterPage() {
@@ -241,6 +246,11 @@ export default function ChapterPage() {
                             verifiedLevel3={topic.verifiedLevel3 || 0}
                             verifiedLevel4={topic.verifiedLevel4 || 0}
                             verifiedLevel5={topic.verifiedLevel5 || 0}
+                            unverifiedLevel1={topic.unverifiedLevel1 || 0}
+                            unverifiedLevel2={topic.unverifiedLevel2 || 0}
+                            unverifiedLevel3={topic.unverifiedLevel3 || 0}
+                            unverifiedLevel4={topic.unverifiedLevel4 || 0}
+                            unverifiedLevel5={topic.unverifiedLevel5 || 0}
                           />
                         </div>
                         <div className="col-span-1 flex justify-center">
