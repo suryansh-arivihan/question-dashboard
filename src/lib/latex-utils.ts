@@ -276,18 +276,21 @@ CRITICAL RULES:
 5. Keep equation tags like \\tag{1}, \\tag{2} inside the math delimiters
 6. Return ONLY plain LaTeX source code - NO HTML, NO KaTeX markup, NO <span> or <math> tags
 7. Your output must be raw LaTeX text that can be directly used in a .tex file
+8. DO NOT REMOVE ANY BLANK LINES - preserve all existing blank lines and ADD MORE blank lines as needed
+9. Your PRIMARY task is to add $ delimiters AND add blank lines for readability
 
 CRITICAL FORMATTING RULES FOR STEP-BY-STEP SOLUTIONS:
 1. ALWAYS add a blank line BEFORE "Given:" section
 2. ALWAYS add a blank line AFTER "Given:" section
-3. ALWAYS add a blank line BEFORE "To Find:" or "To find:" section
+3. ALWAYS add a blank line BEFORE "To Find:" or "To find:" section (or extract and create one if embedded in Given)
 4. ALWAYS add a blank line AFTER "To Find:" or "To find:" section
-5. ALWAYS add a blank line BEFORE each "Step N:" or numbered step (1., 2., etc.)
+5. ALWAYS add a blank line BEFORE each numbered step: "Step 1:", "Step 2:", "1)", "2)", "1.", "2.", etc.
 6. ALWAYS add a blank line AFTER each step's content before the next step
-7. Add blank lines between ALL major sections: Given, To Find, Formula, Principle, Calculation, Steps, Therefore, Answer, etc.
+7. Add blank lines between ALL major sections: Given, To Find, Formula, Principle, Calculation Steps, Therefore, Answer, etc.
 8. Each step must be clearly separated with blank lines to show step-by-step progression
 9. After display equations ($$...$$), add a blank line before continuing
-10. The solution must be highly readable with clear visual separation between sections and steps
+10. If "To Find:" or "We need" is in the Given section, extract it to a separate "To Find:" section with blank lines
+11. The solution must be highly readable with clear visual separation between sections and steps
 
 REFERENCE EXAMPLE OF PERFECT LaTeX FORMATTING:
 "Given: $\\theta=\\tan^{-1}(4/3)$ so $\\sin\\theta=4/5$, $\\cos\\theta=3/5$. Ramp inclination $\\beta=30^\\circ$ so $\\tan\\beta=\\dfrac{1}{\\sqrt{3}}$ and $\\cot\\beta=\\sqrt{3}$. Vertical translation speed $V=20\\,\\mathrm{m\\,s^{-1}}$, $c_0=-20\\,\\mathrm{m}$, $g=10\\,\\mathrm{m\\,s^{-2}}$.
@@ -336,7 +339,17 @@ CRITICAL REMINDER: Add blank lines BEFORE "Given:", BEFORE "To Find:", BEFORE ea
 TEXT TO FIX:
 ${result}`;
 
-    const systemPrompt = `You are an expert LaTeX formatter specializing in mathematical and scientific notation. Your task is to add proper $ and $$ delimiters around math expressions while preserving the exact LaTeX commands, structure, spacing, and formatting. Never modify the mathematical content itself - only add the missing delimiters.
+    const systemPrompt = `You are an expert LaTeX formatter. Your TWO MAIN TASKS are:
+
+TASK 1 (CRITICAL): ADD BLANK LINES
+- Add a blank line BEFORE every numbered step (1), 2), 3), Step 1:, etc.)
+- Add blank lines between ALL sections (Given, To Find, Formula, Calculation Steps, Therefore)
+- NEVER remove existing blank lines
+- When in doubt, add MORE blank lines
+
+TASK 2: Add $ and $$ delimiters
+- Wrap math expressions with proper delimiters
+- Preserve exact LaTeX commands
 
 ⚠️ CRITICAL OUTPUT FORMAT RULES - VIOLATION WILL RESULT IN REJECTION ⚠️
 - Return ONLY plain LaTeX source code
@@ -355,35 +368,45 @@ Wrapped in code blocks
 REQUIRED OUTPUT FORMAT (DO THIS):
 Plain text with $ delimiters like: $g_s = 280\\,\\text{cm s}^{-2}$
 
-CRITICAL STEP-BY-STEP FORMATTING RULES:
-- ALWAYS add blank lines to separate sections (Given, To Find, Steps, Therefore, Answer)
+🚨 CRITICAL STEP-BY-STEP FORMATTING RULES - BLANK LINES ARE MANDATORY 🚨
+- DO NOT REMOVE BLANK LINES - only add more blank lines
+- ALWAYS add blank lines to separate sections (Given, To Find, Formula, Principle, Calculation Steps, Therefore, Answer)
 - ALWAYS add a blank line BEFORE and AFTER each major section header
-- ALWAYS add a blank line BEFORE each step (Step 1:, Step 2:, etc.)
+- ALWAYS add a blank line BEFORE each numbered step: "Step 1:", "1)", "1.", "2)", "2.", etc.
 - ALWAYS add a blank line AFTER each step's content
+- If "To Find" or "We need" is embedded in the Given section, extract it to a separate "To Find:" section
 - Each step must stand alone with clear visual separation
 - Solutions must be highly readable with excellent visual structure
 - The step-by-step progression must be crystal clear
+- MORE BLANK LINES = BETTER - prefer on the side of adding too many rather than too few
 
 SIMPLE FORMATTING PATTERN TO FOLLOW:
 
 [start]
 
-Given: [parameters]
+Given: [parameters only - no "we need" statements]
 
-To Find: [what we need to find]
+To Find: [what we need to find - extracted from Given if necessary]
 
-Step 1: [description]
+Formula/Principle:
+[formulas if any]
+
+Calculation Steps:
+
+1) [First step description]
 [work/equations]
 
-Step 2: [description]
+2) [Second step description]
 [work/equations]
 
-Step 3: [description]
+3) [Third step description]
 [work/equations]
 
 Therefore: [conclusion]
 
-Answer: [\boxed{final answer}]
+Answer: [final answer]
+
+IMPORTANT: Recognize ALL step formats: "Step 1:", "1)", "1.", etc. - ALL need blank lines before them!
 
 DETAILED EXAMPLE OF PERFECTLY FORMATTED STEP-BY-STEP SOLUTION (NOTE THE BLANK LINES):
 
@@ -443,7 +466,80 @@ KEY OBSERVATIONS FROM THIS EXAMPLE:
 - All nested structures intact: $\\vec v_{\\text{rel}}=\\big(u\\cos\\theta,\\;u\\sin\\theta-gt-V\\big)$
 - Blank lines separate major sections (Given:, Step 1:, Step 2:, Therefore:)
 - Line breaks after display equations ($$...$$) and before new sections
-- Each numbered step (Step 1:, Step 2:, etc.) starts on a new line with proper spacing`;
+- Each numbered step (Step 1:, Step 2:, etc.) starts on a new line with proper spacing
+
+EXAMPLE TRANSFORMATION - ADDING BLANK LINES:
+
+INPUT (has some blank lines but needs more):
+Given: Data. We need to find X.
+
+Formula/Principle:
+- Formula 1
+
+Calculation Steps:
+1) First step
+2) Second step
+
+Therefore: Answer
+
+OUTPUT (preserve existing blank lines + add more):
+Given: Data.
+
+To Find: X
+
+Formula/Principle:
+- Formula 1
+
+Calculation Steps:
+
+1) First step
+
+2) Second step
+
+Therefore: Answer
+
+KEY POINT: Notice the OUTPUT has blank lines before "1)" and "2)" that weren't in the INPUT!
+
+CONCRETE EXAMPLE WITH CHEMISTRY PROBLEM FORMAT:
+
+INPUT:
+Given: E = 0.15 V. We need E for reaction.
+
+Formula/Principle:
+- Formula here
+
+Calculation Steps:
+1) First step:
+
+Details of step 1
+
+2) Second step:
+
+Details of step 2
+
+Therefore: Answer
+
+OUTPUT (ADD BLANK LINES BEFORE EACH NUMBERED STEP):
+Given: $E = 0.15\\,\\text{V}$.
+
+To Find: $E$ for reaction
+
+Formula/Principle:
+- Formula here
+
+Calculation Steps:
+
+1) First step:
+
+Details of step 1
+
+2) Second step:
+
+Details of step 2
+
+Therefore: Answer
+
+CRITICAL: See how "1)" and "2)" each have a blank line BEFORE them? This is MANDATORY!`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -457,8 +553,8 @@ KEY OBSERVATIONS FROM THIS EXAMPLE:
           content: prompt,
         },
       ],
-      temperature: 0.1, // Low temperature for consistent formatting
-      max_tokens: 8000,
+      temperature: 0.3, // Higher temperature to encourage formatting changes
+      max_tokens: 10000, // More tokens for blank lines
     });
 
     let fixed = response.choices[0]?.message?.content?.trim();
