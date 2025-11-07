@@ -274,11 +274,20 @@ CRITICAL RULES:
 3. Keep ALL nested structures intact: subscripts, superscripts, \\mathrm, \\frac, etc.
 4. Maintain spacing commands like \\, and \\!
 5. Keep equation tags like \\tag{1}, \\tag{2} inside the math delimiters
-6. PRESERVE all line breaks (\\n) and paragraph spacing from the input text EXACTLY as they are
-7. Add blank lines between major sections (Given:, Formula:, Steps:, Therefore:, etc.)
-8. Keep each numbered step on a new line (Step 1:, Step 2:, 1), 2), etc.)
-9. Add line breaks after display equations ($$...$$) when appropriate
-10. Return ONLY the fixed text with no explanations or markdown formatting
+6. Return ONLY plain LaTeX source code - NO HTML, NO KaTeX markup, NO <span> or <math> tags
+7. Your output must be raw LaTeX text that can be directly used in a .tex file
+
+CRITICAL FORMATTING RULES FOR STEP-BY-STEP SOLUTIONS:
+1. ALWAYS add a blank line BEFORE "Given:" section
+2. ALWAYS add a blank line AFTER "Given:" section
+3. ALWAYS add a blank line BEFORE "To Find:" or "To find:" section
+4. ALWAYS add a blank line AFTER "To Find:" or "To find:" section
+5. ALWAYS add a blank line BEFORE each "Step N:" or numbered step (1., 2., etc.)
+6. ALWAYS add a blank line AFTER each step's content before the next step
+7. Add blank lines between ALL major sections: Given, To Find, Formula, Principle, Calculation, Steps, Therefore, Answer, etc.
+8. Each step must be clearly separated with blank lines to show step-by-step progression
+9. After display equations ($$...$$), add a blank line before continuing
+10. The solution must be highly readable with clear visual separation between sections and steps
 
 REFERENCE EXAMPLE OF PERFECT LaTeX FORMATTING:
 "Given: $\\theta=\\tan^{-1}(4/3)$ so $\\sin\\theta=4/5$, $\\cos\\theta=3/5$. Ramp inclination $\\beta=30^\\circ$ so $\\tan\\beta=\\dfrac{1}{\\sqrt{3}}$ and $\\cot\\beta=\\sqrt{3}$. Vertical translation speed $V=20\\,\\mathrm{m\\,s^{-1}}$, $c_0=-20\\,\\mathrm{m}$, $g=10\\,\\mathrm{m\\,s^{-2}}$.
@@ -301,35 +310,82 @@ KEY PATTERNS TO FOLLOW:
 - LaTeX environments: $$\\begin{align*}...\\end{align*}$$
 - Text commands: $\\textbf{Given:}$, $\\text{value}$
 
-STEP-BY-STEP SOLUTION STRUCTURE (preserve line breaks):
+REQUIRED STEP-BY-STEP SOLUTION STRUCTURE WITH MANDATORY BLANK LINES:
+
+[question or problem statement if any]
+
 Given: [parameters with proper $ delimiters]
 
-Formula/Principle:
-- [formula 1]
-- [formula 2]
+To Find: [what needs to be found]
 
-Calculation Steps:
-1) [First step description]
-$$[equation if any]$$
+Step 1: [First step description]
+[equations and work]
 
-2) [Second step description]
-$$[equation if any]$$
+Step 2: [Second step description]
+[equations and work]
+
+Step 3: [Third step description]
+[equations and work]
 
 Therefore: [conclusion]
+
+Answer: [final answer if applicable]
+
+CRITICAL REMINDER: Add blank lines BEFORE "Given:", BEFORE "To Find:", BEFORE each "Step N:", and BEFORE "Therefore:" and "Answer:". These blank lines are MANDATORY for clear step-by-step readability.
 
 TEXT TO FIX:
 ${result}`;
 
     const systemPrompt = `You are an expert LaTeX formatter specializing in mathematical and scientific notation. Your task is to add proper $ and $$ delimiters around math expressions while preserving the exact LaTeX commands, structure, spacing, and formatting. Never modify the mathematical content itself - only add the missing delimiters.
 
-IMPORTANT FORMATTING RULES:
-- PRESERVE all line breaks (\\n) from the input text EXACTLY as they appear
-- Keep each numbered step on its own line (e.g., "Step 1:", "1)", "2)", etc.)
-- Add blank lines between major sections like "Given:", "Formula/Principle:", "Calculation Steps:", "Therefore:"
-- Add line breaks after display equations ($$...$$)
-- The output structure and line breaks must exactly match the input structure
+⚠️ CRITICAL OUTPUT FORMAT RULES - VIOLATION WILL RESULT IN REJECTION ⚠️
+- Return ONLY plain LaTeX source code
+- DO NOT render, format, or convert to HTML/KaTeX/MathML
+- DO NOT include ANY HTML tags: NO <span>, NO <math>, NO <div>, NO markup of ANY kind
+- DO NOT wrap in markdown code blocks
+- Return raw LaTeX text EXACTLY as it would appear in a .tex file
+- Your output must be pure text that can be directly pasted into a LaTeX editor
+- If you include ANY HTML tags or rendered output, your response will be REJECTED
 
-EXAMPLE OF PERFECTLY FORMATTED SOLUTION (USE THIS AS YOUR REFERENCE):
+EXAMPLE OF FORBIDDEN OUTPUT (DO NOT DO THIS):
+<span class="katex">...</span>
+<math xmlns="...">...</math>
+Wrapped in code blocks
+
+REQUIRED OUTPUT FORMAT (DO THIS):
+Plain text with $ delimiters like: $g_s = 280\\,\\text{cm s}^{-2}$
+
+CRITICAL STEP-BY-STEP FORMATTING RULES:
+- ALWAYS add blank lines to separate sections (Given, To Find, Steps, Therefore, Answer)
+- ALWAYS add a blank line BEFORE and AFTER each major section header
+- ALWAYS add a blank line BEFORE each step (Step 1:, Step 2:, etc.)
+- ALWAYS add a blank line AFTER each step's content
+- Each step must stand alone with clear visual separation
+- Solutions must be highly readable with excellent visual structure
+- The step-by-step progression must be crystal clear
+
+SIMPLE FORMATTING PATTERN TO FOLLOW:
+
+[start]
+
+Given: [parameters]
+
+To Find: [what we need to find]
+
+Step 1: [description]
+[work/equations]
+
+Step 2: [description]
+[work/equations]
+
+Step 3: [description]
+[work/equations]
+
+Therefore: [conclusion]
+
+Answer: [\boxed{final answer}]
+
+DETAILED EXAMPLE OF PERFECTLY FORMATTED STEP-BY-STEP SOLUTION (NOTE THE BLANK LINES):
 
 Given: $\\theta=\\tan^{-1}(4/3)$ so $\\sin\\theta=4/5$, $\\cos\\theta=3/5$. Ramp inclination $\\beta=30^\\circ$ so $\\tan\\beta=\\dfrac{1}{\\sqrt{3}}$ and $\\cot\\beta=\\sqrt{3}$. Vertical translation speed $V=20\\,\\mathrm{m\\,s^{-1}}$, $c_0=-20\\,\\mathrm{m}$, $g=10\\,\\mathrm{m\\,s^{-2}}$.
 
@@ -405,7 +461,43 @@ KEY OBSERVATIONS FROM THIS EXAMPLE:
       max_tokens: 8000,
     });
 
-    const fixed = response.choices[0]?.message?.content?.trim();
+    let fixed = response.choices[0]?.message?.content?.trim();
+
+    if (fixed) {
+      // Strip markdown code fences if present (```latex ... ``` or ``` ... ```)
+      const codeBlockRegex = /^```(?:latex)?\s*\n?([\s\S]*?)\n?```$/;
+      const match = fixed.match(codeBlockRegex);
+      if (match) {
+        fixed = match[1].trim();
+      }
+
+      // Check for common HTML/KaTeX markup indicators
+      const htmlIndicators = [
+        '<span',
+        '<math',
+        '<div',
+        'class=',
+        'katex',
+        'xmlns=',
+        'mathml',
+        '<semantics',
+        '<mrow',
+        '<annotation',
+        'aria-hidden',
+        'style=',
+      ];
+
+      const hasHTML = htmlIndicators.some(indicator =>
+        fixed!.toLowerCase().includes(indicator.toLowerCase())
+      );
+
+      if (hasHTML) {
+        console.error('AI returned HTML/KaTeX markup instead of LaTeX. Falling back to normalized version.');
+        console.error('First 500 chars of bad response:', fixed.substring(0, 500));
+        return result;
+      }
+    }
+
     return fixed || result;
   } catch (error) {
     console.error('Error using OpenAI to fix LaTeX:', error);
