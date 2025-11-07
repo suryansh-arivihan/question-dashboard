@@ -397,7 +397,7 @@ export default function QuestionReviewPage() {
                     </Button>
                   ) : (
                     <>
-                      <Button
+                      {/* <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleFixLatex('quick')}
@@ -415,7 +415,7 @@ export default function QuestionReviewPage() {
                             Quick Fix
                           </>
                         )}
-                      </Button>
+                      </Button> */}
                       <Button
                         variant="default"
                         size="sm"
