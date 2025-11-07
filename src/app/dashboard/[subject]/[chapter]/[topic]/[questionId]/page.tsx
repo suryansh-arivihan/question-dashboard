@@ -53,199 +53,6 @@ interface NavigationData {
   totalQuestions: number;
 }
 
-/**
- * Fixes missing LaTeX delimiters in text
- *
- * This function intelligently wraps unwrapped LaTeX content with appropriate delimiters ($...$)
- * while preserving already-delimited content and handling various edge cases.
- *
- * Features:
- * - Protects existing LaTeX delimiters ($...$, $$...$$, \[...\], \(...\))
- * - Wraps complete mathematical lines (inequalities, multi-term expressions)
- * - Wraps equation patterns (variable = expression)
- * - Wraps individual LaTeX elements (commands, subscripts, superscripts)
- * - Merges adjacent math expressions intelligently
- * - Handles sentence boundaries correctly (periods, semicolons, etc.)
- * - Distinguishes decimals from sentence-ending periods
- * - Stops at natural word boundaries ("where", "with", "exactly", etc.)
- *
- * @param {string} text - The input text with unwrapped LaTeX
- * @returns {string} - The text with properly wrapped LaTeX delimiters
- */
-function fixLatexDelimiters(text: string): string {
-  const protectedContent: string[] = [];
-  let result = text;
-
-  // Step 0: Wrap and protect correctly formatted trig functions with degrees
-  result = result.replace(
-    /\\(?:cos|sin|tan|cot|sec|csc)\s*\d+\s*\^\s*\{\\circ\}/g,
-    (match) => {
-      const wrapped = `$${match}$`;
-      const id = `__P${protectedContent.length}__`;
-      protectedContent.push(wrapped);
-      return id;
-    }
-  );
-
-  // Step 1: Protect existing delimited content
-  const protectionPatterns = [
-    /\\\[[\s\S]+?\\\]/g,      // Display math: \[...\]
-    /\$\$[\s\S]+?\$\$/g,      // Display math: $$...$$
-    /\\\([\s\S]+?\\\)/g,      // Inline math: \(...\)
-    /\$[^$\n]+?\$/g,          // Inline math: $...$
-  ];
-
-  protectionPatterns.forEach(pattern => {
-    result = result.replace(pattern, (match) => {
-      const id = `__P${protectedContent.length}__`;
-      protectedContent.push(match);
-      return id;
-    });
-  });
-
-  // Step 2a: Wrap complete mathematical lines (with comparisons/operators)
-  // Handle lines that are primarily mathematical (inequalities, multi-term expressions)
-  result = result.replace(
-    /^([^$\n]*(?:\\[a-zA-Z]+|[_^]\{)[^$\n]*[<>=][^$\n]*(?:\\[a-zA-Z]+|[_^]\{)[^$\n]*)$/gm,
-    (match) => {
-      // Skip if already protected
-      if (match.includes('__P')) return match;
-
-      // Skip if starts with common sentence patterns (but not single-letter variables)
-      const trimmed = match.trim();
-      if (/^(?:[A-Z][a-z]{2,}|[a-z]{2,}|Hence|Therefore|Since|Thus|Then|Also|According)\s/.test(trimmed)) {
-        return match;
-      }
-
-      // Check if line is primarily math (has LaTeX and operators)
-      const hasLaTeX = /\\[a-zA-Z]+|[_^]\{/.test(match);
-      const hasOperator = /[<>=]/.test(match);
-      const mathDensity = (match.match(/\\[a-zA-Z]+|[_^]\{/g) || []).length;
-
-      if (hasLaTeX && hasOperator && mathDensity >= 2) {
-        const wrapped = `$${match.trim()}$`;
-        const id = `__P${protectedContent.length}__`;
-        protectedContent.push(wrapped);
-        return id;
-      }
-
-      return match;
-    }
-  );
-
-  // Step 2b: Find and wrap equation patterns (with equals sign)
-  // Pattern: variable (possibly with subscript/superscript or LaTeX command) = expression
-  // Variable can be: plain (a), subscripted (t_{2}), or LaTeX command (\theta)
-  // Captures chained equations and includes trailing colons if followed by newline
-  // Also handles protected content (like pre-wrapped trig functions)
-  result = result.replace(
-    /(__P\d+__|\\[a-zA-Z]+|[a-zA-Z_]\w*)(?:[_^]\{[^}]+\})*\s*=\s*(?:(?!where\b|with\b|when\b|and\b|exactly\b|for\b).)+?:?(?=\s+(?:where|with|when|and|exactly|for)\b|\s*\n|[.!?;]\s|$)/g,
-    (match) => {
-      // Check if match contains LaTeX or protected content
-      const hasLaTeX = /\\[a-zA-Z]+|[_^]\{|__P\d+__/.test(match);
-
-      if (hasLaTeX) {
-        // Trim trailing whitespace and wrap
-        const wrapped = `$${match.trim()}$`;
-        // Protect this newly wrapped content
-        const id = `__P${protectedContent.length}__`;
-        protectedContent.push(wrapped);
-        return id;
-      }
-
-      return match;
-    }
-  );
-
-  // Step 3: Wrap individual LaTeX elements that weren't caught above
-  const latexPatterns = [
-    /\\[a-zA-Z]+\s+\d+\s*\^\s*\{\\circ\}/g,            // LaTeX command + degree notation (e.g., \cos 45^{\circ})
-    /\\[a-zA-Z]+(?:\{[^}]*\})*(?:[_^]\{[^}]+\})*/g,  // LaTeX commands with optional args
-    /\b[a-zA-Z_]\w*[_^]\{[^}]+\}(?:[_^]\{[^}]+\})*/g, // Variables with subscripts/superscripts
-    /\d+\s*\^\s*\{\\circ\}/g,                          // Degree notation
-  ];
-
-  latexPatterns.forEach(pattern => {
-    result = result.replace(pattern, (match) => {
-      if (match.includes('__P') || match.includes('$')) return match;
-      return `$${match}$`;
-    });
-  });
-
-  // Step 3.5: Restore protected content before merging
-  protectedContent.forEach((content: string, i: number) => {
-    const placeholder = `__P${i}__`;
-    result = result.split(placeholder).join(content);
-  });
-
-  // Step 3.6: Handle colons after LaTeX expressions (like equations ending with colon before newline)
-  result = result.replace(
-    /\$([^$\n]+)\$(:)(?=\s*\n)/g,
-    (_match, expr, colon) => {
-      return `$${expr}${colon}$`;
-    }
-  );
-
-  // Step 4: Merge adjacent math expressions intelligently
-  let changed = true;
-  let iterations = 0;
-
-  while (changed && iterations < 15) {
-    changed = false;
-    iterations++;
-    const before = result;
-
-    // Merge pattern: $expr$ SEPARATOR $expr$
-    result = result.replace(
-      /\$([^$\n]+?)\$([^$\n]*?)\$([^$\n]+?)\$/g,
-      (match, left, sep, right) => {
-        // Don't merge across sentence boundaries (but allow colons in math context)
-        if (/[.!?;]\s*$/.test(sep)) return match;
-        // Don't merge if colon followed by newline (end of statement)
-        if (/:\s*$/.test(sep) && /\n/.test(right)) return match;
-
-        // Merge across operators and equals
-        if (/^\s*([-+=<>×·∙,]|=)\s*$/.test(sep)) {
-          changed = true;
-          return `$${left}${sep}${right}$`;
-        }
-
-        // Merge across single lowercase letter (like 'g', 'n', 'a')
-        if (/^\s*[a-z]\s*$/.test(sep)) {
-          changed = true;
-          return `$${left}${sep}${right}$`;
-        }
-
-        // Merge LaTeX command with degree notation: $\cos$ $45^{\circ}$
-        if (/^\\[a-zA-Z]+$/.test(left) && /^\d+\s*\^\s*\{\\circ\}$/.test(right) && /^\s*$/.test(sep)) {
-          changed = true;
-          return `$${left} ${right}$`;
-        }
-
-        // Merge very small spaces if both sides have backslash commands
-        if (/^\s{1,2}$/.test(sep) && /\\/.test(left) && /\\/.test(right)) {
-          changed = true;
-          return `$${left}${sep}${right}$`;
-        }
-
-        return match;
-      }
-    );
-
-    if (result === before) break;
-  }
-
-  // Step 5: Fix double-wrapping issues
-  // Fix: $45^{$\circ$}$ → $45^{\circ}$
-  result = result.replace(/\$(\d+)\^\{\$\\circ\$\}\$/g, '$$1^{\\circ}$');
-
-  // Step 6: Clean up
-  result = result.replace(/\$\s*\$/g, ' ');  // Remove empty delimiters
-  result = result.replace(/\$+/g, '$');       // Collapse multiple $ signs
-
-  return result;
-}
-
 export default function QuestionReviewPage() {
   const router = useRouter();
   const params = useParams();
@@ -262,6 +69,7 @@ export default function QuestionReviewPage() {
   const [navigation, setNavigation] = useState<NavigationData | null>(null);
   const [showFixedLatex, setShowFixedLatex] = useState(false);
   const [fixedSolution, setFixedSolution] = useState<string>("");
+  const [fixingLatex, setFixingLatex] = useState(false);
 
   // Helper function to build back URL with preserved filters
   const buildBackURL = () => {
@@ -355,15 +163,40 @@ export default function QuestionReviewPage() {
 
   const goBack = () => router.push(buildBackURL());
 
-  const handleFixLatex = () => {
+  const handleFixLatex = async (mode: 'quick' | 'ai') => {
     if (!question?.solution) return;
 
     if (!showFixedLatex) {
       // Generate fixed version
-      const fixed = fixLatexDelimiters(question.solution);
-      setFixedSolution(fixed);
-      setShowFixedLatex(true);
-      toast.success("LaTeX delimiters fixed!");
+      setFixingLatex(true);
+      try {
+        const endpoint = mode === 'quick' ? '/api/latex/quick-fix' : '/api/latex/ai-fix';
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            text: question.solution,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to fix LaTeX");
+        }
+
+        setFixedSolution(data.fixedText);
+        setShowFixedLatex(true);
+        toast.success(mode === 'quick' ? "LaTeX fixed!" : "LaTeX fixed with AI!");
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to fix LaTeX"
+        );
+      } finally {
+        setFixingLatex(false);
+      }
     } else {
       // Toggle back to original
       setShowFixedLatex(false);
@@ -552,15 +385,59 @@ export default function QuestionReviewPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-lg">Solution</CardTitle>
-                <Button
-                  variant={showFixedLatex ? "default" : "outline"}
-                  size="sm"
-                  onClick={handleFixLatex}
-                  className="gap-2"
-                >
-                  <Wand2 className="h-4 w-4" />
-                  {showFixedLatex ? "Show Original" : "Fix LaTeX"}
-                </Button>
+                <div className="flex gap-2">
+                  {showFixedLatex ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleFixLatex('quick')}
+                      className="gap-2"
+                    >
+                      Show Original
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleFixLatex('quick')}
+                        disabled={fixingLatex}
+                        className="gap-2"
+                      >
+                        {fixingLatex ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Fixing...
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 className="h-4 w-4" />
+                            Quick Fix
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => handleFixLatex('ai')}
+                        disabled={fixingLatex}
+                        className="gap-2"
+                      >
+                        {fixingLatex ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            AI Fixing...
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 className="h-4 w-4" />
+                            Fix with AI
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <LatexRenderer
