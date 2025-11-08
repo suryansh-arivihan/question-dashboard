@@ -15,6 +15,11 @@ export function LatexRenderer({ content, className = "" }: LatexRendererProps) {
     const katex = require("katex");
     let processed = content;
 
+    // IMPORTANT: Convert blank lines to HTML breaks BEFORE processing LaTeX
+    // This preserves the visual spacing that the AI formatter added
+    // Replace double newlines with <br><br> to create visual paragraph breaks
+    processed = processed.replace(/\n\n/g, '<br><br>');
+
     // Process display math: $$...$$ (must be done before inline math)
     processed = processed.replace(/\$\$([^$]+)\$\$/g, (match, math) => {
       try {
