@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body: ReadyToGoRequest = await request.json();
-    const { subject, chapter, topic, topicId, levels } = body;
+    const { subject, chapter, topic, topicId, levels, user_prompts } = body;
 
     if (!subject || !chapter || !topic) {
       return NextResponse.json(
@@ -105,6 +105,7 @@ export async function POST(request: NextRequest) {
           chapter_name: chapter,
           subject: subject.toLowerCase(),
           levels: selectedLevels,
+          ...(user_prompts && Object.keys(user_prompts).length > 0 && { user_prompts }),
         }),
       });
 

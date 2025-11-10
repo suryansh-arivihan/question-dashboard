@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "./ui/card"
 import { StatusBadge } from "./StatusBadge";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "./ui/dialog";
+import { Textarea } from "./ui/textarea";
 import { toast } from "sonner";
 import { PipelineHistoryModal } from "./PipelineHistoryModal";
 import { QueueStatusResponse } from "@/types";
@@ -48,7 +49,8 @@ export function TopicCard({
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [currentQueueId, setCurrentQueueId] = useState<string | null>(null);
-  const [selectedLevels, setSelectedLevels] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [selectedLevels, setSelectedLevels] = useState<number[]>([]);
+  const [userPrompts, setUserPrompts] = useState<Record<string, string>>({});
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Cleanup polling on unmount
@@ -126,10 +128,23 @@ export function TopicCard({
   const toggleLevel = (level: number) => {
     setSelectedLevels((prev) => {
       if (prev.includes(level)) {
+        // Remove level and its prompt
+        setUserPrompts((prompts) => {
+          const newPrompts = { ...prompts };
+          delete newPrompts[level.toString()];
+          return newPrompts;
+        });
         return prev.filter((l) => l !== level);
       }
       return [...prev, level].sort((a, b) => a - b);
     });
+  };
+
+  const updatePrompt = (level: number, prompt: string) => {
+    setUserPrompts((prev) => ({
+      ...prev,
+      [level.toString()]: prompt,
+    }));
   };
 
   const handleReadyToGo = async () => {
@@ -141,6 +156,14 @@ export function TopicCard({
     setShowConfirmDialog(false);
     setIsLoading(true);
     try {
+      // Filter out empty prompts
+      const filteredPrompts = Object.entries(userPrompts).reduce((acc, [level, prompt]) => {
+        if (prompt.trim()) {
+          acc[level] = prompt.trim();
+        }
+        return acc;
+      }, {} as Record<string, string>);
+
       const response = await fetch("/api/admin/ready-to-go", {
         method: "POST",
         headers: {
@@ -152,6 +175,7 @@ export function TopicCard({
           topic,
           topicId,
           levels: selectedLevels,
+          ...(Object.keys(filteredPrompts).length > 0 && { user_prompts: filteredPrompts }),
         }),
       });
 
@@ -329,8 +353,8 @@ export function TopicCard({
 
       {/* Confirmation Dialog */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <DialogContent className="max-w-lg p-0 gap-0">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b">
+        <DialogContent className="max-w-lg max-h-[90vh] p-0 gap-0 flex flex-col">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
             <DialogTitle className="text-lg font-semibold">
               Trigger Generation Pipeline
             </DialogTitle>
@@ -339,42 +363,58 @@ export function TopicCard({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="p-6 space-y-5">
+          <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
             {/* Level Selection Section */}
             <div>
               <h3 className="text-sm font-medium text-foreground mb-3">
                 Select Difficulty Levels
               </h3>
-              <div className="rounded-lg border divide-y">
+              <div className="space-y-3">
                 {[1, 2, 3, 4, 5].map((level) => {
                   const isSelected = selectedLevels.includes(level);
                   return (
-                    <button
-                      key={level}
-                      type="button"
-                      onClick={() => toggleLevel(level)}
-                      className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium text-foreground">
-                          Level {level}
-                        </span>
-                      </div>
-                      <div
-                        className={`
-                          flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all
-                          ${
-                            isSelected
-                              ? "bg-primary border-primary"
-                              : "border-muted-foreground/30"
-                          }
-                        `}
+                    <div key={level} className="rounded-lg border bg-card transition-all">
+                      <button
+                        type="button"
+                        onClick={() => toggleLevel(level)}
+                        className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-muted/50 transition-colors"
                       >
-                        {isSelected && (
-                          <CheckCircle2 className="h-3 w-3 text-primary-foreground" />
-                        )}
-                      </div>
-                    </button>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-foreground">
+                            Level {level}
+                          </span>
+                        </div>
+                        <div
+                          className={`
+                            flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all
+                            ${
+                              isSelected
+                                ? "bg-primary border-primary"
+                                : "border-muted-foreground/30"
+                            }
+                          `}
+                        >
+                          {isSelected && (
+                            <CheckCircle2 className="h-3 w-3 text-primary-foreground" />
+                          )}
+                        </div>
+                      </button>
+
+                      {isSelected && (
+                        <div className="px-4 pb-4 pt-2 space-y-2 border-t bg-muted/20">
+                          <label htmlFor={`prompt-${level}`} className="text-xs text-muted-foreground">
+                            Custom prompt for Level {level} (optional)
+                          </label>
+                          <Textarea
+                            id={`prompt-${level}`}
+                            placeholder={`e.g., "Focus on basic concepts with simple numerical values" or "Include real-world applications"`}
+                            value={userPrompts[level.toString()] || ""}
+                            onChange={(e) => updatePrompt(level, e.target.value)}
+                            className="min-h-[80px]"
+                          />
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -398,7 +438,7 @@ export function TopicCard({
             </div>
           </div>
 
-          <DialogFooter className="px-6 pb-6 flex-row gap-2">
+          <DialogFooter className="px-6 py-6 flex-row gap-2 flex-shrink-0 border-t">
             <Button
               variant="outline"
               onClick={() => setShowConfirmDialog(false)}
