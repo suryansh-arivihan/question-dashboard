@@ -101,6 +101,7 @@ export interface ReadyToGoRequest {
   chapter: string;
   topic: string;
   topicId: string;
+  levels?: number[];
 }
 
 export interface ReadyToGoResponse {

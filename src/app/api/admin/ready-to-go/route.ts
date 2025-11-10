@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body: ReadyToGoRequest = await request.json();
-    const { subject, chapter, topic, topicId } = body;
+    const { subject, chapter, topic, topicId, levels } = body;
 
     if (!subject || !chapter || !topic) {
       return NextResponse.json(
@@ -44,6 +44,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Default to all levels if not specified
+    const selectedLevels = levels && levels.length > 0 ? levels : [1, 2, 3, 4, 5];
 
     // Generate unique queue ID
     const queueId = uuidv4();
@@ -101,6 +104,7 @@ export async function POST(request: NextRequest) {
           identified_topic: topic,
           chapter_name: chapter,
           subject: subject.toLowerCase(),
+          levels: selectedLevels,
         }),
       });
 

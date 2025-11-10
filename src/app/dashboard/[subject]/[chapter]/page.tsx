@@ -7,7 +7,7 @@ import { VerificationBars } from "@/components/VerificationBars";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { SUBJECT_CHAPTER_MAPPINGS } from "@/data/subject-chapter-mappings";
 import { capitalize } from "@/lib/utils";
-import { Loader2, Rocket, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
+import { Loader2, Rocket, CheckCircle2, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { PipelineHistoryModal } from "@/components/PipelineHistoryModal";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
@@ -45,6 +45,7 @@ export default function ChapterPage() {
   const [queuingTopics, setQueuingTopics] = useState<Set<string>>(new Set());
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<TopicWithStats | null>(null);
+  const [selectedLevels, setSelectedLevels] = useState<number[]>([1, 2, 3, 4, 5]);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [historyTopicId, setHistoryTopicId] = useState<string>("");
   const [historyTopicName, setHistoryTopicName] = useState<string>("");
@@ -90,8 +91,22 @@ export default function ChapterPage() {
     setHistoryModalOpen(true);
   };
 
+  const toggleLevel = (level: number) => {
+    setSelectedLevels((prev) => {
+      if (prev.includes(level)) {
+        return prev.filter((l) => l !== level);
+      }
+      return [...prev, level].sort((a, b) => a - b);
+    });
+  };
+
   const handleReadyToGo = async () => {
     if (!selectedTopic) return;
+
+    if (selectedLevels.length === 0) {
+      toast.error("Please select at least one level");
+      return;
+    }
 
     const topicName = selectedTopic.name;
     setConfirmDialogOpen(false);
@@ -108,6 +123,7 @@ export default function ChapterPage() {
           chapter,
           topic: topicName,
           topicId: selectedTopic.topic_id,
+          levels: selectedLevels,
         }),
       });
 
@@ -312,36 +328,100 @@ export default function ChapterPage() {
 
       {/* Confirmation Dialog */}
       <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100">
-                <AlertTriangle className="h-5 w-5 text-yellow-600" />
-              </div>
-              <DialogTitle>Trigger Generation Pipeline?</DialogTitle>
-            </div>
-            <DialogDescription className="text-left mt-2">
-              Are you sure you want to trigger the generation pipeline for{" "}
-              <strong>{selectedTopic?.display_name}</strong>?
-              <br />
-              <br />
-              This will queue the topic for question generation. The process may take some time to complete.
+        <DialogContent className="max-w-lg p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b">
+            <DialogTitle className="text-lg font-semibold">
+              Trigger Generation Pipeline
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground mt-1">
+              {selectedTopic?.display_name}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+
+          <div className="p-6 space-y-5">
+            {/* Level Selection Section */}
+            <div>
+              <h3 className="text-sm font-medium text-foreground mb-3">
+                Select Difficulty Levels
+              </h3>
+              <div className="rounded-lg border divide-y">
+                {[1, 2, 3, 4, 5].map((level) => {
+                  const isSelected = selectedLevels.includes(level);
+                  return (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => toggleLevel(level)}
+                      className="w-full px-4 py-3.5 flex items-center justify-between hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium text-foreground">
+                          Level {level}
+                        </span>
+                      </div>
+                      <div
+                        className={`
+                          flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all
+                          ${
+                            isSelected
+                              ? "bg-primary border-primary"
+                              : "border-muted-foreground/30"
+                          }
+                        `}
+                      >
+                        {isSelected && (
+                          <CheckCircle2 className="h-3 w-3 text-primary-foreground" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedLevels.length === 0 && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Please select at least one level to continue
+                </p>
+              )}
+            </div>
+
+            {/* Info Section */}
+            <div className="rounded-lg bg-muted/50 border p-4">
+              <div className="flex items-start gap-3">
+                <Clock className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    The pipeline will generate questions for the selected difficulty levels. This process may take several minutes to complete.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="px-6 pb-6 flex-row gap-2">
             <Button
               variant="outline"
               onClick={() => setConfirmDialogOpen(false)}
               disabled={selectedTopic ? queuingTopics.has(selectedTopic.name) : false}
+              className="flex-1"
             >
               Cancel
             </Button>
             <Button
-              variant="success"
               onClick={handleReadyToGo}
-              disabled={selectedTopic ? queuingTopics.has(selectedTopic.name) : false}
+              disabled={selectedTopic ? queuingTopics.has(selectedTopic.name) || selectedLevels.length === 0 : false}
+              className="flex-1"
             >
-              {selectedTopic && queuingTopics.has(selectedTopic.name) ? "Queueing..." : "Yes, Trigger Pipeline"}
+              {selectedTopic && queuingTopics.has(selectedTopic.name) ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Queueing...
+                </>
+              ) : (
+                <>
+                  <Rocket className="h-4 w-4 mr-2" />
+                  Trigger Pipeline
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
