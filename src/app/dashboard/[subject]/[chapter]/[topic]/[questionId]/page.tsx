@@ -88,10 +88,30 @@ export default function QuestionReviewPage() {
     return queryString ? `${baseURL}?${queryString}` : baseURL;
   };
 
+  // Helper function to build navigation URL with preserved filters
+  const buildNavigationURL = (targetQuestionId: string) => {
+    const status = searchParams.get("status");
+    const level = searchParams.get("level");
+    const page = searchParams.get("page");
+
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (level) params.set("level", level);
+    if (page) params.set("page", page);
+
+    const queryString = params.toString();
+    const baseURL = `/dashboard/${subject}/${encodeURIComponent(chapter)}/${encodeURIComponent(topic)}/${targetQuestionId}`;
+
+    return queryString ? `${baseURL}?${queryString}` : baseURL;
+  };
+
   useEffect(() => {
     fetchQuestion();
-    fetchNavigation();
   }, [subject, chapter, topic, questionId]);
+
+  useEffect(() => {
+    fetchNavigation();
+  }, [subject, chapter, topic, questionId, searchParams]);
 
   const fetchQuestion = async () => {
     setLoading(true);
@@ -114,16 +134,41 @@ export default function QuestionReviewPage() {
 
   const fetchNavigation = async () => {
     try {
-      const response = await fetch(
-        `/api/questions/navigation?subject=${subject}&chapter=${chapter}&topic=${topic}&questionId=${questionId}&status=all`
-      );
+      // Get filters from URL params to maintain consistency
+      const status = searchParams.get("status") || "all";
+      const level = searchParams.get("level");
+
+      const params = new URLSearchParams({
+        subject,
+        chapter,
+        topic,
+        questionId,
+        status,
+      });
+
+      if (level) {
+        params.set("level", level);
+      }
+
+      console.log("[Question Detail] Fetching navigation with params:", params.toString());
+
+      const response = await fetch(`/api/questions/navigation?${params.toString()}`);
 
       if (response.ok) {
         const data = await response.json();
+        console.log("[Question Detail] Navigation data received:", {
+          currentIndex: data.currentIndex,
+          totalQuestions: data.totalQuestions,
+          hasPrevious: !!data.previous,
+          hasNext: !!data.next,
+        });
         setNavigation(data);
+      } else {
+        const errorData = await response.json();
+        console.error("[Question Detail] Navigation API error:", errorData);
       }
     } catch (err) {
-      console.error("Error fetching navigation:", err);
+      console.error("[Question Detail] Error fetching navigation:", err);
     }
   };
 
@@ -243,7 +288,7 @@ export default function QuestionReviewPage() {
         {/* Prefetch links for adjacent questions */}
         {navigation?.previous && (
           <Link
-            href={`/dashboard/${subject}/${encodeURIComponent(chapter)}/${encodeURIComponent(topic)}/${navigation.previous.questionId}`}
+            href={buildNavigationURL(navigation.previous.questionId)}
             prefetch={true}
             style={{ display: 'none' }}
             aria-hidden="true"
@@ -251,7 +296,7 @@ export default function QuestionReviewPage() {
         )}
         {navigation?.next && (
           <Link
-            href={`/dashboard/${subject}/${encodeURIComponent(chapter)}/${encodeURIComponent(topic)}/${navigation.next.questionId}`}
+            href={buildNavigationURL(navigation.next.questionId)}
             prefetch={true}
             style={{ display: 'none' }}
             aria-hidden="true"
@@ -474,7 +519,7 @@ export default function QuestionReviewPage() {
             <div className="flex-1">
               {navigation?.previous ? (
                 <Link
-                  href={`/dashboard/${subject}/${encodeURIComponent(chapter)}/${encodeURIComponent(topic)}/${navigation.previous.questionId}`}
+                  href={buildNavigationURL(navigation.previous.questionId)}
                 >
                   <Button
                     variant="outline"
@@ -523,7 +568,7 @@ export default function QuestionReviewPage() {
             <div className="flex-1">
               {navigation?.next ? (
                 <Link
-                  href={`/dashboard/${subject}/${encodeURIComponent(chapter)}/${encodeURIComponent(topic)}/${navigation.next.questionId}`}
+                  href={buildNavigationURL(navigation.next.questionId)}
                 >
                   <Button
                     variant="outline"

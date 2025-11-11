@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { ScanCommand } from "@aws-sdk/lib-dynamodb";
-import { docClient, TABLES } from "@/lib/dynamodb";
+import { getQuestionsForTopic } from "@/lib/questions-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -27,65 +26,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build filter expression
-    let filterExpression = "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic";
-    const expressionAttributeValues: Record<string, any> = {
-      ":subject": subject.toLowerCase(),
-      ":chapter": chapter.toLowerCase(),
-      ":topic": topic.toLowerCase(),
-    };
+    console.log("[Navigation API] Fetching navigation for:", {
+      subject: subject.toLowerCase(),
+      chapter: chapter.toLowerCase(),
+      topic: topic.toLowerCase(),
+      currentQuestionId,
+      status,
+      level: level || "all",
+    });
 
-    // Add level filter if specified
-    if (level) {
-      filterExpression += " AND difficulty_level = :level";
-      expressionAttributeValues[":level"] = parseInt(level);
-    }
+    // Use cached question list
+    const allQuestions = await getQuestionsForTopic(
+      subject,
+      chapter,
+      topic,
+      status,
+      level || undefined
+    );
 
-    // Helper function to scan all pages from a table
-    const scanAllPages = async (tableName: string) => {
-      let allItems: any[] = [];
-      let lastEvaluatedKey: Record<string, any> | undefined = undefined;
-
-      do {
-        const command: ScanCommand = new ScanCommand({
-          TableName: tableName,
-          FilterExpression: filterExpression,
-          ExpressionAttributeValues: expressionAttributeValues,
-          ExclusiveStartKey: lastEvaluatedKey,
-        });
-
-        const response = await docClient.send(command);
-        allItems = allItems.concat(response.Items || []);
-        lastEvaluatedKey = response.LastEvaluatedKey;
-      } while (lastEvaluatedKey);
-
-      return allItems;
-    };
-
-    let allQuestions: any[] = [];
-
-    if (status === "all") {
-      // Fetch from both tables in parallel with full pagination
-      const [pendingItems, verifiedItems] = await Promise.all([
-        scanAllPages(TABLES.QUESTIONS_PENDING),
-        scanAllPages(TABLES.QUESTIONS_VERIFIED),
-      ]);
-
-      allQuestions = [
-        ...pendingItems,
-        ...verifiedItems,
-      ];
-    } else {
-      // Fetch from specific table based on status with full pagination
-      const tableName = status === "VERIFIED"
-        ? TABLES.QUESTIONS_VERIFIED
-        : TABLES.QUESTIONS_PENDING;
-
-      allQuestions = await scanAllPages(tableName);
-    }
-
-    // Sort questions by question_id to maintain consistent order
-    allQuestions.sort((a, b) => a.question_id.localeCompare(b.question_id));
+    console.log(`[Navigation API] Found ${allQuestions.length} questions for ${subject}/${chapter}/${topic} (status: ${status}, level: ${level || 'all'})`);
 
     // Find current question index
     const currentIndex = allQuestions.findIndex(
@@ -93,6 +52,8 @@ export async function GET(request: NextRequest) {
     );
 
     if (currentIndex === -1) {
+      console.error(`[Navigation API] Current question ${currentQuestionId} not found in ${allQuestions.length} questions`);
+      console.error(`[Navigation API] First few question IDs:`, allQuestions.slice(0, 5).map(q => q.question_id));
       return NextResponse.json(
         { error: "Current question not found" },
         { status: 404 }
@@ -102,6 +63,8 @@ export async function GET(request: NextRequest) {
     // Get previous and next question IDs
     const previousQuestion = currentIndex > 0 ? allQuestions[currentIndex - 1] : null;
     const nextQuestion = currentIndex < allQuestions.length - 1 ? allQuestions[currentIndex + 1] : null;
+
+    console.log(`[Navigation API] Current: ${currentIndex + 1}/${allQuestions.length}, Has Previous: ${!!previousQuestion}, Has Next: ${!!nextQuestion}`);
 
     return NextResponse.json({
       previous: previousQuestion ? {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { PutCommand, DeleteCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { docClient, TABLES } from "@/lib/dynamodb";
+import { clearCache } from "@/lib/questions-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +69,10 @@ export async function POST(request: NextRequest) {
 
     await docClient.send(deleteCommand);
 
-    console.log(`[Verify API] Question ${questionId} moved to verified table`);
+    // Clear cache for this topic since counts have changed
+    clearCache(question.subject, question.chapter_name, question.identified_topic);
+
+    console.log(`[Verify API] Question ${questionId} moved to verified table and cache cleared`);
 
     return NextResponse.json({
       success: true,

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { ScanCommand } from "@aws-sdk/lib-dynamodb";
-import { docClient, TABLES } from "@/lib/dynamodb";
+import { getQuestionsForTopic } from "@/lib/questions-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -28,114 +27,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build filter expressions
-    let filterExpression = "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic";
-    // For pending table, exclude VERIFIED and DISCARDED questions
-    let filterExpressionPending = "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic AND (attribute_not_exists(#status) OR (#status <> :verifiedStatus AND #status <> :discardedStatus))";
-    // For discarded questions only
-    let filterExpressionDiscarded = "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic AND #status = :discardedStatus";
-
-    const baseAttributeValues: Record<string, any> = {
-      ":subject": subject.toLowerCase(),
-      ":chapter": chapter.toLowerCase(),
-      ":topic": topic.toLowerCase(),
-    };
-
-    const expressionAttributeNames = {
-      "#status": "status",
-    };
-
-    console.log("[Questions API] Searching for:", {
+    console.log("[Questions API] Fetching questions for:", {
       subject: subject.toLowerCase(),
       chapter: chapter.toLowerCase(),
       topic: topic.toLowerCase(),
-      topicCharCodes: Array.from(topic.toLowerCase()).map(c => `${c}(${c.charCodeAt(0)})`).join(' '),
       status,
+      level: level || "all",
     });
 
-    // Add level filter if specified
-    if (level) {
-      filterExpression += " AND difficulty_level = :level";
-      filterExpressionPending += " AND difficulty_level = :level";
-      filterExpressionDiscarded += " AND difficulty_level = :level";
-      baseAttributeValues[":level"] = parseInt(level);
-    }
-
-    // Helper function to scan all pages from a table
-    const scanAllPages = async (tableName: string, filterType: "default" | "pending" | "discarded" = "default") => {
-      let allItems: any[] = [];
-      let lastEvaluatedKey: Record<string, any> | undefined = undefined;
-
-      // Create attribute values based on filter type
-      let attrValues = baseAttributeValues;
-      let filterExpr = filterExpression;
-      let needsAttrNames = false;
-
-      if (filterType === "pending") {
-        attrValues = { ...baseAttributeValues, ":verifiedStatus": "VERIFIED", ":discardedStatus": "DISCARDED" };
-        filterExpr = filterExpressionPending;
-        needsAttrNames = true;
-      } else if (filterType === "discarded") {
-        attrValues = { ...baseAttributeValues, ":discardedStatus": "DISCARDED" };
-        filterExpr = filterExpressionDiscarded;
-        needsAttrNames = true;
-      }
-
-      const scanParams: any = {
-        TableName: tableName,
-        FilterExpression: filterExpr,
-        ExpressionAttributeValues: attrValues,
-        ExclusiveStartKey: undefined,
-      };
-
-      // Add ExpressionAttributeNames only when status filter is used
-      if (needsAttrNames) {
-        scanParams.ExpressionAttributeNames = expressionAttributeNames;
-      }
-
-      do {
-        scanParams.ExclusiveStartKey = lastEvaluatedKey;
-        const command: ScanCommand = new ScanCommand(scanParams);
-
-        const response = await docClient.send(command);
-        allItems = allItems.concat(response.Items || []);
-        lastEvaluatedKey = response.LastEvaluatedKey;
-      } while (lastEvaluatedKey);
-
-      return allItems;
-    };
-
-    let allQuestions: any[] = [];
-
-    if (status === "all") {
-      // Fetch from both tables in parallel with full pagination
-      // For pending table, filter out VERIFIED and DISCARDED questions
-      const [pendingItems, verifiedItems] = await Promise.all([
-        scanAllPages(TABLES.QUESTIONS_PENDING, "pending"),
-        scanAllPages(TABLES.QUESTIONS_VERIFIED, "default"),
-      ]);
-
-      console.log("[Questions API] Results:", {
-        pending: pendingItems.length,
-        verified: verifiedItems.length,
-        tablePending: TABLES.QUESTIONS_PENDING,
-        tableVerified: TABLES.QUESTIONS_VERIFIED,
-      });
-
-      allQuestions = [
-        ...pendingItems,
-        ...verifiedItems,
-      ];
-    } else if (status === "VERIFIED") {
-      // Fetch only verified questions
-      allQuestions = await scanAllPages(TABLES.QUESTIONS_VERIFIED, "default");
-    } else if (status === "DISCARDED") {
-      // Fetch only discarded questions from pending table
-      allQuestions = await scanAllPages(TABLES.QUESTIONS_PENDING, "discarded");
-    } else {
-      // PENDING - fetch from pending table, excluding VERIFIED and DISCARDED
-      allQuestions = await scanAllPages(TABLES.QUESTIONS_PENDING, "pending");
-    }
+    // Use cached question list
+    const allQuestions = await getQuestionsForTopic(
+      subject,
+      chapter,
+      topic,
+      status,
+      level || undefined
+    );
 
     // Pagination
     const totalCount = allQuestions.length;
