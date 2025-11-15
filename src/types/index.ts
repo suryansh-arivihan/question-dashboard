@@ -119,6 +119,12 @@ export interface ReadyToGoResponse {
 export interface QueueStatusResponse {
   queue_id: string;
   status: "QUEUED" | "IN_PROGRESS" | "COMPLETED" | "FAILED" | "CANCELLED";
+  subject?: string;
+  chapter_name?: string;
+  topic_name?: string;
+  triggered_by?: string;
+  created_at?: number;
+  updated_at?: number;
   position?: number;
   estimated_wait_seconds?: number;
   enqueued_at?: number;

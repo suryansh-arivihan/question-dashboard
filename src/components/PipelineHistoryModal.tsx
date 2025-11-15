@@ -5,8 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Badge } from "./ui/badge";
 import { ScrollArea } from "./ui/scroll-area";
 import { Button } from "./ui/button";
-import { Loader2, CheckCircle2, XCircle, Clock, AlertCircle, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
-import { GenerationQueueEntry } from "@/types";
+import { Loader2, CheckCircle2, XCircle, Clock, AlertCircle, RefreshCw, ChevronDown, ChevronUp, Info } from "lucide-react";
+import { GenerationQueueEntry, QueueStatusResponse } from "@/types";
 import { toast } from "sonner";
 
 interface PipelineHistoryModalProps {
@@ -27,6 +27,8 @@ export function PipelineHistoryModal({
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [isAutoRefreshing, setIsAutoRefreshing] = useState(false);
+  const [queueStatusData, setQueueStatusData] = useState<Record<string, QueueStatusResponse>>({});
+  const [loadingQueueStatus, setLoadingQueueStatus] = useState<Record<string, boolean>>({});
 
   const toggleEntry = (entryId: string) => {
     setExpandedEntries((prev) => {
@@ -58,6 +60,35 @@ export function PipelineHistoryModal({
       );
     }
   }, [topicId]);
+
+  const fetchQueueStatus = async (queueId: string) => {
+    setLoadingQueueStatus((prev) => ({ ...prev, [queueId]: true }));
+    try {
+      const response = await fetch(`/api/admin/queue-status/${queueId}`);
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch queue status");
+      }
+
+      const data: QueueStatusResponse = await response.json();
+      setQueueStatusData((prev) => ({ ...prev, [queueId]: data }));
+
+      // Automatically expand the entry if not already expanded
+      setExpandedEntries((prev) => {
+        const next = new Set(prev);
+        next.add(queueId);
+        return next;
+      });
+
+      toast.success("Queue status retrieved successfully");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to fetch queue status"
+      );
+    } finally {
+      setLoadingQueueStatus((prev) => ({ ...prev, [queueId]: false }));
+    }
+  };
 
   useEffect(() => {
     if (open && topicId) {
@@ -272,6 +303,34 @@ export function PipelineHistoryModal({
                           </span>
                         </div>
                       </div>
+
+                      {/* Get Status button for queued entries */}
+                      {entry.status === "QUEUED" && (
+                        <div className="mt-3 flex justify-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              fetchQueueStatus(entry.id);
+                            }}
+                            disabled={loadingQueueStatus[entry.id]}
+                            className="h-8 text-xs"
+                          >
+                            {loadingQueueStatus[entry.id] ? (
+                              <>
+                                <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <Info className="h-3 w-3 mr-2" />
+                                Get Queue Status
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Expanded Details */}
@@ -284,6 +343,56 @@ export function PipelineHistoryModal({
                           <span className="font-mono text-muted-foreground/80">{entry.id}</span>
                         </div>
                       </div>
+
+                      {/* Queue Status Section */}
+                      {queueStatusData[entry.id] && (
+                        <div className="px-6 py-5 border-b">
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
+                              <Info className="h-4 w-4 text-primary" />
+                            </div>
+                            <h4 className="text-sm font-semibold text-foreground">Queue Status</h4>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="rounded-lg border bg-card p-4 hover:bg-card/80 transition-colors">
+                              <div className="flex flex-col items-center justify-center h-full">
+                                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
+                                  Position
+                                </span>
+                                <span className="text-3xl font-bold text-primary">
+                                  {queueStatusData[entry.id].position !== undefined
+                                    ? `#${queueStatusData[entry.id].position}`
+                                    : "N/A"}
+                                </span>
+                              </div>
+                            </div>
+
+                            {queueStatusData[entry.id].estimated_wait_seconds !== undefined && (
+                              <div className="rounded-lg border bg-card p-4 hover:bg-card/80 transition-colors">
+                                <div className="flex flex-col items-center justify-center h-full">
+                                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
+                                    Est. Wait
+                                  </span>
+                                  <span className="text-3xl font-bold text-primary">
+                                    {Math.floor(queueStatusData[entry.id].estimated_wait_seconds! / 60)}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground mt-1">minutes</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {queueStatusData[entry.id].created_at && (
+                            <div className="mt-4 pt-4 border-t border-muted">
+                              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                <span>Queued at {formatDate(queueStatusData[entry.id].created_at!)}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Level Details Section */}
                       {entry.summary && Object.keys(entry.summary).length > 0 && (
