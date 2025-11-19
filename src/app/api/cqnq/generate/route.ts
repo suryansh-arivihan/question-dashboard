@@ -262,8 +262,7 @@ async function fetchQuestionsWithoutNumber(
 
   let questionIndex = 0;
   let foundInRound = true;
-  let emptyResultsCount = 0;
-  const MAX_EMPTY_RESULTS = 50; // Circuit breaker: stop if we get 50 consecutive empty results
+  const MAX_EMPTY_RESULTS = 50; // Circuit breaker: stop if we get 50 consecutive empty FETCHES in first round
 
   // Do round-robin: fetch 1st question from each topic-level, then 2nd, then 3rd, etc.
   while (selectedQuestions.length < MAX_QUESTIONS && foundInRound && questionIndex < 10) {
@@ -271,6 +270,7 @@ async function fetchQuestionsWithoutNumber(
     console.log(`[CQNQ Fallback] Round ${questionIndex + 1}: Fetching question #${questionIndex + 1} from each topic-level`);
 
     let roundCount = 0;
+    let consecutiveEmptyFetches = 0; // Track consecutive empty FETCHES (not cached lookups)
 
     // Process topics in smaller batches to avoid DynamoDB throttling
     // Batch size of 3 topics = 9 parallel requests (3 topics × 3 levels)
@@ -305,13 +305,13 @@ async function fetchQuestionsWithoutNumber(
             // Sort by createdAt to get consistent ordering
             questions.sort((a, b) => a.createdAt - b.createdAt);
             questionsByTopicLevel.set(key, questions);
-            emptyResultsCount = 0; // Reset counter on successful fetch
+            consecutiveEmptyFetches = 0; // Reset counter on successful fetch
           } else {
-            emptyResultsCount++;
+            consecutiveEmptyFetches++;
 
-            // Circuit breaker: if too many empty results, this chapter likely has no questions
-            if (emptyResultsCount >= MAX_EMPTY_RESULTS) {
-              console.log(`[CQNQ Fallback] Circuit breaker triggered: ${emptyResultsCount} empty results`);
+            // Circuit breaker: if too many consecutive empty FETCHES, this chapter likely has no questions
+            if (consecutiveEmptyFetches >= MAX_EMPTY_RESULTS) {
+              console.log(`[CQNQ Fallback] Circuit breaker triggered: ${consecutiveEmptyFetches} consecutive empty fetches`);
               break;
             }
           }
@@ -342,31 +342,14 @@ async function fetchQuestionsWithoutNumber(
           }
         }
       }
-
-      // Check if circuit breaker was triggered
-      if (emptyResultsCount >= MAX_EMPTY_RESULTS) {
-        break;
-      }
     }
 
     console.log(`[CQNQ Fallback] Round ${questionIndex + 1}: Found ${roundCount} questions, total: ${selectedQuestions.length}`);
 
-    // If we've reached minimum and didn't find any more questions, stop
-    if (selectedQuestions.length >= MIN_QUESTIONS && !foundInRound) {
-      console.log(`[CQNQ Fallback] Reached minimum of ${MIN_QUESTIONS} questions, stopping`);
+    // If we've completed a round and reached minimum, stop
+    if (selectedQuestions.length >= MIN_QUESTIONS) {
+      console.log(`[CQNQ Fallback] Reached minimum of ${MIN_QUESTIONS} questions after round ${questionIndex + 1}, stopping`);
       break;
-    }
-
-    // If circuit breaker triggered and we don't have enough questions, fail early
-    if (emptyResultsCount >= MAX_EMPTY_RESULTS && selectedQuestions.length < MIN_QUESTIONS) {
-      break;
-    }
-
-    // If we found enough in this round, check if we should continue
-    if (selectedQuestions.length >= MIN_QUESTIONS && selectedQuestions.length < MAX_QUESTIONS) {
-      // We have enough but could get more, continue to next round
-      questionIndex++;
-      continue;
     }
 
     questionIndex++;
