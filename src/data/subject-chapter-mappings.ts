@@ -433,6 +433,11 @@ export const SUBJECT_CHAPTER_MAPPINGS: SubjectChapterMapping[] = [
         "name": "work, energy and power",
         "display_name": "Work, Energy and Power",
         "topicCount": 44
+      },
+      {
+        "name": "modern physics",
+        "display_name": "Modern Physics",
+        "topicCount": 50
       }
     ]
   }
