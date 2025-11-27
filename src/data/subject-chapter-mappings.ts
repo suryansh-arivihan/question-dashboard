@@ -437,7 +437,7 @@ export const SUBJECT_CHAPTER_MAPPINGS: SubjectChapterMapping[] = [
       {
         "name": "modern physics",
         "display_name": "Modern Physics",
-        "topicCount": 50
+        "topicCount": 71
       }
     ]
   }
