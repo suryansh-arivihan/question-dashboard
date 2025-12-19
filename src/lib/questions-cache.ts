@@ -104,7 +104,12 @@ export async function getQuestionsForTopic(
   status: string,
   level?: string
 ): Promise<any[]> {
-  const cacheKey = getCacheKey(subject, chapter, topic, status, level);
+  // Normalize inputs by trimming whitespace
+  const normalizedSubject = subject.trim();
+  const normalizedChapter = chapter.trim();
+  const normalizedTopic = topic.trim();
+
+  const cacheKey = getCacheKey(normalizedSubject, normalizedChapter, normalizedTopic, status, level);
 
   // Check cache first
   const cachedQuestions = getFromCache(cacheKey);
@@ -124,9 +129,9 @@ export async function getQuestionsForTopic(
     "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic AND #status = :discardedStatus";
 
   const baseAttributeValues: Record<string, any> = {
-    ":subject": subject.toLowerCase(),
-    ":chapter": chapter.toLowerCase(),
-    ":topic": topic.toLowerCase(),
+    ":subject": normalizedSubject.toLowerCase(),
+    ":chapter": normalizedChapter.toLowerCase(),
+    ":topic": normalizedTopic.toLowerCase(),
   };
 
   const expressionAttributeNames = {

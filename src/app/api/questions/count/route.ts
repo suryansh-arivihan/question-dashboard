@@ -38,16 +38,21 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const subject = searchParams.get("subject");
-    const chapter = searchParams.get("chapter");
-    const topic = searchParams.get("topic");
+    const subjectRaw = searchParams.get("subject");
+    const chapterRaw = searchParams.get("chapter");
+    const topicRaw = searchParams.get("topic");
 
-    if (!subject || !chapter || !topic) {
+    if (!subjectRaw || !chapterRaw || !topicRaw) {
       return NextResponse.json(
         { error: "Subject, chapter, and topic parameters are required" },
         { status: 400 }
       );
     }
+
+    // Normalize inputs by trimming whitespace
+    const subject = subjectRaw.trim();
+    const chapter = chapterRaw.trim();
+    const topic = topicRaw.trim();
 
     // Check cache first
     const cacheKey = getCacheKey(subject, chapter, topic);

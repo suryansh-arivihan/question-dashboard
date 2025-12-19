@@ -96,6 +96,11 @@ async function fetchQuestionsForTopicLevel(
   const questions: VerifiedQuestion[] = [];
   let lastEvaluatedKey: Record<string, any> | undefined = undefined;
 
+  // Normalize inputs by trimming whitespace
+  const normalizedSubject = subject.trim().toLowerCase();
+  const normalizedChapter = chapter.trim().toLowerCase();
+  const normalizedTopic = topic.trim().toLowerCase();
+
   try {
     do {
       const command: ScanCommand = new ScanCommand({
@@ -103,9 +108,9 @@ async function fetchQuestionsForTopicLevel(
         FilterExpression:
           "subject = :subject AND chapter_name = :chapter AND identified_topic = :topic AND difficulty_level = :level",
         ExpressionAttributeValues: {
-          ":subject": { S: subject.toLowerCase() },
-          ":chapter": { S: chapter.toLowerCase() },
-          ":topic": { S: topic },
+          ":subject": { S: normalizedSubject },
+          ":chapter": { S: normalizedChapter },
+          ":topic": { S: normalizedTopic },
           ":level": { N: level.toString() },
         },
         ExclusiveStartKey: lastEvaluatedKey,

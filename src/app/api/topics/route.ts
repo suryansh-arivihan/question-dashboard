@@ -39,15 +39,19 @@ export async function GET(request: NextRequest) {
 
     // Get query parameters
     const searchParams = request.nextUrl.searchParams;
-    const subject = searchParams.get("subject");
-    const chapter = searchParams.get("chapter");
+    const subjectRaw = searchParams.get("subject");
+    const chapterRaw = searchParams.get("chapter");
 
-    if (!subject || !chapter) {
+    if (!subjectRaw || !chapterRaw) {
       return NextResponse.json(
         { error: "Both subject and chapter parameters are required" },
         { status: 400 }
       );
     }
+
+    // Normalize inputs by trimming whitespace
+    const subject = subjectRaw.trim();
+    const chapter = chapterRaw.trim();
 
     console.log("[Topics API] Fetching topics for:", { subject, chapter });
 

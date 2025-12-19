@@ -12,20 +12,25 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const subject = searchParams.get("subject");
-    const chapter = searchParams.get("chapter");
-    const topic = searchParams.get("topic");
+    const subjectRaw = searchParams.get("subject");
+    const chapterRaw = searchParams.get("chapter");
+    const topicRaw = searchParams.get("topic");
     const status = searchParams.get("status") || "all"; // all, PENDING, or VERIFIED
     const level = searchParams.get("level"); // 1, 2, or 3
     const page = parseInt(searchParams.get("page") || "1");
     const pageSize = parseInt(searchParams.get("pageSize") || "7");
 
-    if (!subject || !chapter || !topic) {
+    if (!subjectRaw || !chapterRaw || !topicRaw) {
       return NextResponse.json(
         { error: "Subject, chapter, and topic parameters are required" },
         { status: 400 }
       );
     }
+
+    // Normalize inputs by trimming whitespace
+    const subject = subjectRaw.trim();
+    const chapter = chapterRaw.trim();
+    const topic = topicRaw.trim();
 
     console.log("[Questions API] Fetching questions for:", {
       subject: subject.toLowerCase(),
