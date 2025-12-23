@@ -21,6 +21,13 @@ export async function POST(request: NextRequest) {
     const body: TestGenerationRequest = await request.json();
     const { subject, chapter, chapterDisplayName, numTests, testData } = body;
 
+    // Filter out empty or whitespace-only topic keys from testData
+    const filteredTestData = testData
+      ? Object.fromEntries(
+          Object.entries(testData).filter(([key]) => key.trim() !== "")
+        )
+      : testData;
+
     // Validate required fields
     if (!subject || !chapter || !chapterDisplayName || !numTests || !testData) {
       return NextResponse.json(
@@ -45,7 +52,7 @@ export async function POST(request: NextRequest) {
       createdAt: timestamp,
       updatedAt: timestamp,
       numTests,
-      testData,
+      testData: filteredTestData,
       subject_chapter: subjectChapter,
     };
 
