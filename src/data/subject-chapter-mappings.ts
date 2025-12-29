@@ -300,6 +300,11 @@ export const SUBJECT_CHAPTER_MAPPINGS: SubjectChapterMapping[] = [
         "topicCount": 29
       },
       {
+        "name": "capacitance",
+        "display_name": "Capacitance",
+        "topicCount": 19
+      },
+      {
         "name": "current electricity",
         "display_name": "Current Electricity",
         "topicCount": 21

@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "extract-mappings": "tsx scripts/extract-mappings.ts"
+    "start": "next start -p 5004"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.908.0",
