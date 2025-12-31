@@ -295,24 +295,19 @@ export const SUBJECT_CHAPTER_MAPPINGS: SubjectChapterMapping[] = [
         "topicCount": 30
       },
       {
-        "name": "atoms",
-        "display_name": "Atoms",
-        "topicCount": 29
-      },
-      {
         "name": "capacitance",
         "display_name": "Capacitance",
         "topicCount": 19
       },
       {
+        "name": "center of mass",
+        "display_name": "Center of Mass",
+        "topicCount": 24
+      },
+      {
         "name": "current electricity",
         "display_name": "Current Electricity",
         "topicCount": 21
-      },
-      {
-        "name": "dual nature of radiation and matter",
-        "display_name": "Dual Nature of Radiation and Matter",
-        "topicCount": 12
       },
       {
         "name": "electric charges and fields",
@@ -330,11 +325,6 @@ export const SUBJECT_CHAPTER_MAPPINGS: SubjectChapterMapping[] = [
         "topicCount": 16
       },
       {
-        "name": "electrostatic potential and capacitance",
-        "display_name": "Electrostatic Potential and Capacitance",
-        "topicCount": 63
-      },
-      {
         "name": "gravitation",
         "display_name": "Gravitation",
         "topicCount": 41
@@ -345,19 +335,9 @@ export const SUBJECT_CHAPTER_MAPPINGS: SubjectChapterMapping[] = [
         "topicCount": 76
       },
       {
-        "name": "kinetic theory",
-        "display_name": "Kinetic Theory",
-        "topicCount": 23
-      },
-      {
         "name": "laws of motion",
         "display_name": "Laws of Motion",
         "topicCount": 64
-      },
-      {
-        "name": "magnetism and matter",
-        "display_name": "Magnetism and Matter",
-        "topicCount": 36
       },
       {
         "name": "mechanical properties of fluids",
@@ -370,26 +350,6 @@ export const SUBJECT_CHAPTER_MAPPINGS: SubjectChapterMapping[] = [
         "topicCount": 21
       },
       {
-        "name": "motion in a plane",
-        "display_name": "Motion in a Plane",
-        "topicCount": 42
-      },
-      {
-        "name": "motion in a straight line",
-        "display_name": "Motion in a Straight Line",
-        "topicCount": 34
-      },
-      {
-        "name": "moving charges and magnetism",
-        "display_name": "Moving Charges and Magnetism",
-        "topicCount": 24
-      },
-      {
-        "name": "nuclei",
-        "display_name": "Nuclei",
-        "topicCount": 33
-      },
-      {
         "name": "oscillation",
         "display_name": "Oscillation",
         "topicCount": 34
@@ -400,14 +360,14 @@ export const SUBJECT_CHAPTER_MAPPINGS: SubjectChapterMapping[] = [
         "topicCount": 49
       },
       {
+        "name": "rotational motion",
+        "display_name": "Rotational Motion",
+        "topicCount": 40
+      },
+      {
         "name": "semiconductor electronics: materials, devices and simple circuits",
         "display_name": "Semiconductor Electronics: Materials, Devices and Simple Circuits",
         "topicCount": 29
-      },
-      {
-        "name": "system of particles and rotational motion",
-        "display_name": "System of Particles and Rotational Motion",
-        "topicCount": 47
       },
       {
         "name": "thermal properties of matter",
