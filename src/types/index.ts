@@ -102,7 +102,7 @@ export interface ReadyToGoRequest {
   topic: string;
   topicId: string;
   levels?: number[];
-  user_prompts?: Record<string, string>;
+  user_prompts?: Record<string, string[]>;
 }
 
 export interface ReadyToGoResponse {

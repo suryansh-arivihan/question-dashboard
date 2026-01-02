@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Rocket, CheckCircle2, Clock, Loader2, XCircle } from "lucide-react";
+import { Rocket, CheckCircle2, Clock, Loader2, XCircle, Plus, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "./ui/card";
 import { StatusBadge } from "./StatusBadge";
 import { Button } from "./ui/button";
@@ -50,7 +50,7 @@ export function TopicCard({
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [currentQueueId, setCurrentQueueId] = useState<string | null>(null);
   const [selectedLevels, setSelectedLevels] = useState<number[]>([]);
-  const [userPrompts, setUserPrompts] = useState<Record<string, string>>({});
+  const [userPrompts, setUserPrompts] = useState<Record<string, string[]>>({});
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Cleanup polling on unmount
@@ -128,7 +128,7 @@ export function TopicCard({
   const toggleLevel = (level: number) => {
     setSelectedLevels((prev) => {
       if (prev.includes(level)) {
-        // Remove level and its prompt
+        // Remove level and its prompts
         setUserPrompts((prompts) => {
           const newPrompts = { ...prompts };
           delete newPrompts[level.toString()];
@@ -140,11 +140,33 @@ export function TopicCard({
     });
   };
 
-  const updatePrompt = (level: number, prompt: string) => {
+  // Add a new empty example question for a level
+  const addExample = (level: number) => {
+    const key = level.toString();
     setUserPrompts((prev) => ({
       ...prev,
-      [level.toString()]: prompt,
+      [key]: [...(prev[key] || []), ""],
     }));
+  };
+
+  // Update a specific example question at an index
+  const updateExample = (level: number, index: number, value: string) => {
+    const key = level.toString();
+    setUserPrompts((prev) => {
+      const examples = [...(prev[key] || [])];
+      examples[index] = value;
+      return { ...prev, [key]: examples };
+    });
+  };
+
+  // Remove an example question at an index
+  const removeExample = (level: number, index: number) => {
+    const key = level.toString();
+    setUserPrompts((prev) => {
+      const examples = [...(prev[key] || [])];
+      examples.splice(index, 1);
+      return { ...prev, [key]: examples };
+    });
   };
 
   const handleReadyToGo = async () => {
@@ -156,13 +178,14 @@ export function TopicCard({
     setShowConfirmDialog(false);
     setIsLoading(true);
     try {
-      // Filter out empty prompts
-      const filteredPrompts = Object.entries(userPrompts).reduce((acc, [level, prompt]) => {
-        if (prompt.trim()) {
-          acc[level] = prompt.trim();
+      // Filter out empty examples
+      const filteredPrompts = Object.entries(userPrompts).reduce((acc, [level, examples]) => {
+        const nonEmpty = examples.filter((q) => q.trim().length > 0);
+        if (nonEmpty.length > 0) {
+          acc[level] = nonEmpty;
         }
         return acc;
-      }, {} as Record<string, string>);
+      }, {} as Record<string, string[]>);
 
       const response = await fetch("/api/admin/ready-to-go", {
         method: "POST",
@@ -401,17 +424,54 @@ export function TopicCard({
                       </button>
 
                       {isSelected && (
-                        <div className="px-4 pb-4 pt-2 space-y-2 border-t bg-muted/20">
-                          <label htmlFor={`prompt-${level}`} className="text-xs text-muted-foreground">
-                            Custom prompt for Level {level} (optional)
-                          </label>
-                          <Textarea
-                            id={`prompt-${level}`}
-                            placeholder={`e.g., "Focus on basic concepts with simple numerical values" or "Include real-world applications"`}
-                            value={userPrompts[level.toString()] || ""}
-                            onChange={(e) => updatePrompt(level, e.target.value)}
-                            className="min-h-[80px]"
-                          />
+                        <div className="px-4 pb-4 pt-2 space-y-3 border-t bg-muted/20">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs text-muted-foreground">
+                              Example questions for Level {level} (optional)
+                            </label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => addExample(level)}
+                              className="h-7 px-2 text-xs"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Add Example Question
+                            </Button>
+                          </div>
+
+                          {(userPrompts[level.toString()] || []).length > 0 ? (
+                            <div className="space-y-2">
+                              {(userPrompts[level.toString()] || []).map((example, index) => (
+                                <div key={index} className="flex gap-2">
+                                  <Textarea
+                                    placeholder={`Example question ${index + 1}...`}
+                                    value={example}
+                                    onChange={(e) => updateExample(level, index, e.target.value)}
+                                    className="min-h-[60px] font-mono text-sm flex-1"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeExample(level, index)}
+                                    className="h-auto px-2 text-muted-foreground hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground italic py-2">
+                              No example questions added. Click &quot;Add Example Question&quot; to provide samples.
+                            </p>
+                          )}
+
+                          <p className="text-xs text-muted-foreground">
+                            AI will cycle through these examples when generating questions for variety.
+                          </p>
                         </div>
                       )}
                     </div>
